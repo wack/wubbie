@@ -9,7 +9,10 @@
 //! separate HuggingFace model repo. The [`weights`] module reads and writes the
 //! on-disk [`safetensors`] format used to move them around.
 
+pub use config::Cli;
+
 pub mod backend;
+pub mod cmd;
 pub mod config;
 pub mod inference;
 pub mod model;
