@@ -81,7 +81,7 @@ implemented:
 
 ```bash
 cargo run -p wubbie -- train
-cargo run -p wubbie -- generate
+cargo run -p wubbie -- generate "Once upon a time"   # or `-` to read stdin
 cargo run -p wubbie -- serve
 ```
 
