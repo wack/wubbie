@@ -1,0 +1,13 @@
+{
+  "blockedBy": [],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P1 (layout/process). Files: .story/config.json, roadmap.json, status.json, tickets/, sessions/, handovers/, lessons/, notes/, snapshots/, channel-inbox/, .gitignore. Reference: metricstore/keystore (fullest non-aviary examples).\n\nProblem: The template was the only repo with no .story/ directory; the session-tracking workflow had no home.\n\nNOTE: This ticket is now partly self-fulfilling — storybloq_init has already created the .story/ skeleton (config.json, roadmap.json, tickets/, issues/, handovers/, notes/, lessons/). Remaining work: verify the directory set against a sibling (metricstore/keystore), add any missing dirs (sessions/, snapshots/, channel-inbox/), and ensure .story/.gitignore matches the fleet convention (snapshots/, sessions/, status.json ignored).\n\nAcceptance: .story/ exists with the full directory set; the Story skill (/story) loads the project without errors.",
+  "id": "T-013",
+  "order": 130,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-013] Round out the .story/ workspace scaffold",
+  "type": "task"
+}

@@ -1,0 +1,11 @@
+# CODEOWNERS — auto-requests review on PRs touching matching paths.
+# https://docs.github.com/en/repositories/managing-your-repos-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Default owner for everything in the repo. NOTE: review requests fire only if
+# this team has write access to the repo (a one-time org/repo admin setting).
+* @wack/engineering
+
+# Add path-specific owners below as the service grows, e.g.:
+#   /helm/                @wack/platform
+#   /.github/workflows/   @wack/ci
+#   /crates/migrations/   @wack/data

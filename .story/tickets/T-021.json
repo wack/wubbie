@@ -1,0 +1,13 @@
+{
+  "blockedBy": [],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P2 (build). Files: crates/migrations/tests/**. Reference: aviary (has migration tests).\n\nProblem: crates/migrations/ is a minimal scaffold with no tests.\n\nChange: Add a tests/ directory with a placeholder migration test (apply-up / rollback round-trip against a throwaway DB).\n\nAcceptance: cargo test -p migrations runs the scaffold test green.",
+  "id": "T-021",
+  "order": 210,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-021] Add a migration test scaffold",
+  "type": "task"
+}

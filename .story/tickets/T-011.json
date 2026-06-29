@@ -1,0 +1,13 @@
+{
+  "blockedBy": [],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P1 (docs/agents). File: src/controllers/CLAUDE.md (new). Reference: aviary.\n\nProblem: The template documents the resource-per-directory rule for views/ (src/views/CLAUDE.md) but not for controllers/.\n\nChange: Add the matching one-liner: each REST resource gets its own directory under controllers/; nested resources mirror the URL path hierarchy (e.g. workspaces/{id}/api-keys -> controllers/workspaces/api_keys/).\n\nAcceptance: file exists and states the controllers layout rule.",
+  "id": "T-011",
+  "order": 110,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-011] Add src/controllers/CLAUDE.md",
+  "type": "chore"
+}

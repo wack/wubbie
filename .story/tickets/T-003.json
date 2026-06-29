@@ -1,0 +1,13 @@
+{
+  "blockedBy": [],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P0 (build/style). File: .cargo/config.toml. Reference: keystore.\n\nProblem: No single canonical clippy command shared by bacon, CI, and local runs. The file currently contains only [net].\n\nChange: Append an [alias] section:\n  [net]\n  git-fetch-with-cli = true\n\n  [alias]\n  clippy-strict = \"clippy --all-targets --workspace -- -D warnings\"\n\nAcceptance: `cargo clippy-strict` runs and fails on any warning.\nPaired with: TPL-004 (bacon job) and TPL-006 (clippy-flow Makefile task) must point at this alias so all three surfaces agree.",
+  "id": "T-003",
+  "order": 30,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-003] Add a clippy-strict cargo alias",
+  "type": "task"
+}

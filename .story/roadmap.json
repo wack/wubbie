@@ -1,0 +1,20 @@
+{
+  "blockers": [],
+  "date": "2026-06-27",
+  "phases": [
+    {
+      "description": "Bring wack/rust-service-template up to parity with its mature siblings (aviary, keystore, metricstore, hare). Tickets are sourced verbatim from template-modernization-tickets.md (companion: template-maturity-audit.html). Priority tiers P0 (correctness/reproducibility), P1 (fleet parity), and P2 (modernization/hygiene) are tracked per-ticket; hare is the CI/CLAUDE.md reference but is HTTP-layout exempt.",
+      "id": "modernization",
+      "label": "PHASE 1",
+      "name": "Template Modernization",
+      "summary": "22 file-grained tickets bringing the template to fleet parity (P0/P1/P2)."
+    },
+    {
+      "description": "Initial project setup.",
+      "id": "p0",
+      "label": "PHASE 0",
+      "name": "Setup"
+    }
+  ],
+  "title": "rust-service-template"
+}

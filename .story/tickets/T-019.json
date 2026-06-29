@@ -1,0 +1,13 @@
+{
+  "blockedBy": [],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P2 (build). File: build.rs. Reference: metricstore.\n\nProblem: The shared build.rs warns on every local build when VCS/CI-CD provenance env vars are absent, spamming local dev.\n\nChange: Only emit the cargo:warning=... when env::var_os(\"CI\").is_some(), and add println!(\"cargo:rerun-if-env-changed=CI\");\n\nAcceptance: local cargo build is warning-free; CI still warns when provenance is missing.",
+  "id": "T-019",
+  "order": 190,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-019] Refine build.rs to gate the \"unknown\" warning behind CI",
+  "type": "task"
+}

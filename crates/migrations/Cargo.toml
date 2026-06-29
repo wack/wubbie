@@ -1,0 +1,26 @@
+[package]
+name = "migration"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+publish = false
+
+[lib]
+name = "migration"
+path = "src/lib.rs"
+
+[dependencies]
+tokio = { workspace = true }
+sea-orm-migration = { version = "1.1.7", features = [
+  "runtime-tokio-rustls",  # `ASYNC_RUNTIME` feature
+  "sqlx-postgres"          # `DATABASE_DRIVER` feature
+] }
+
+[dev-dependencies]
+sea-orm = { version = "1.1.19", features = [
+  "runtime-tokio-rustls",
+  "sqlx-postgres",
+] }
+
+[lints]
+workspace = true

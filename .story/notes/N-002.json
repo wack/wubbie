@@ -1,0 +1,14 @@
+{
+  "content": "T-022 (optional) policy decision: the template does NOT commit openapi.json and does NOT add a `git diff --exit-code` drift check. It keeps the aviary-aligned policy already in place — openapi.json is gitignored (.gitignore:31) and CI validates only that the spec generates and that the client builds from it (on-push.yml generate-openapi job).\n\nRationale:\n1. Optional ticket; the fleet is split (aviary gitignores; keystore/metricstore commit). The richest reference (aviary) and the template's current state gitignore it.\n2. A committed snapshot is wrong for a TEMPLATE: the un-instantiated template cannot generate openapi.json because `cargo make generate-openapi` runs `cargo build -p __SERVICE_NAME__` while the package is `__service_name__` (ISS-001). Any committed snapshot would be a placeholder or name-substituted artifact, and a drift check would fail on the first post-init build when the real service regenerates the spec with its own name/title.\n3. Generation + client-consistency are already CI-enforced; only a committed-snapshot drift is unchecked, and that snapshot is the problematic part for a template.\n\nTo adopt the drift check in a DOWNSTREAM service (after init): commit openapi.json and add `git diff --exit-code openapi.json || (echo 'openapi.json is stale; run: cargo make generate-openapi' && exit 1)` to the generate-openapi task / job (keystore form). Revisit if/when ISS-001 is resolved.",
+  "createdDate": "2026-06-27",
+  "id": "N-002",
+  "status": "active",
+  "tags": [
+    "decision",
+    "openapi",
+    "ci",
+    "policy"
+  ],
+  "title": "Policy: openapi.json is gitignored, not committed (T-022 decision)",
+  "updatedDate": "2026-06-27"
+}

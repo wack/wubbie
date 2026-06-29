@@ -1,0 +1,16 @@
+{
+  "blockedBy": [
+    "T-001",
+    "T-006"
+  ],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P1 (CI). File: .github/workflows/on-push.yml. Reference: keystore (clippy job), hare (pins).\n\nProblem: Workspace clippy only runs deep inside the merge-queue ci-flow; PRs get no fast workspace-wide lint feedback. Pins are a major version behind, and there is no concurrency cancel.\n\nChange:\n  - Add a dedicated clippy job (`cargo make clippy-flow`) and add \"clippy\" to the push-time pr-ready.needs.\n  - Bump actions/checkout@v4->v5 and actions/upload-artifact@v4->v7.\n  - Add a concurrency block (safe on push only — never on the merge queue):\n      concurrency:\n        group: ${{ github.workflow }}-${{ github.ref }}\n        cancel-in-progress: true\n\nAcceptance: a clippy violation fails the PR's \"⚡ PR Ready\" check; superseded push runs are cancelled.\nDepends on: TPL-001 (guard already landed), TPL-006 (clippy-flow).",
+  "id": "T-009",
+  "order": 90,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-009] Enhance on-push.yml (clippy job + concurrency + pin bumps)",
+  "type": "task"
+}

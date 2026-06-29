@@ -1,0 +1,16 @@
+{
+  "components": [
+    "autonomous"
+  ],
+  "discoveredDate": "2026-06-27",
+  "id": "ISS-002",
+  "impact": "generate-openapi task uses -p __SERVICE_NAME__ vs crate __service_name__; pre-existing, tracked in ISS-001",
+  "location": [],
+  "phase": null,
+  "relatedTickets": [],
+  "resolution": "Duplicate of ISS-001, which already tracks the generate-openapi __SERVICE_NAME__ vs __service_name__ package-name mismatch. Auto-filed by the review verification step. Closing as duplicate; fix tracked in ISS-001.",
+  "resolvedDate": "2026-06-27",
+  "severity": "medium",
+  "status": "resolved",
+  "title": "[accuracy] generate-openapi task uses -p __SERVICE_NAME__ vs crate __service_name__; pre-ex"
+}

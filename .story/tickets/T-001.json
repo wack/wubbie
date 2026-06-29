@@ -1,0 +1,13 @@
+{
+  "blockedBy": [],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P0 (correctness). File: .github/workflows/on-push.yml. Reference: hare (also aviary/keystore/metricstore).\n\nProblem: Trigger is `branches: ['**', '!trunk']`, missing the `!gh-readonly-queue/**` exclusion every mature sibling has. Without it the fast \"⚡ PR Ready\" job can run on merge-queue branches and satisfy the queue's required status check BEFORE the heavy on-merge.yml build finishes — allowing a failing commit to merge.\n\nChange: Add the third branch exclusion plus explanatory comment:\n  on:\n    push:\n      branches:\n        - '**'\n        - '!trunk'\n        - '!gh-readonly-queue/**'   # on-merge.yml owns merge-queue validation\n\nAcceptance: on-push.yml does not run on gh-readonly-queue/* refs; comment explains why (copied from hare).\nNote: carnegie shares this exact gap; apply the same fix there (tracked separately).",
+  "id": "T-001",
+  "order": 10,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-001] Add the merge-queue branch guard to on-push.yml",
+  "type": "task"
+}

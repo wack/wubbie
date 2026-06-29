@@ -1,0 +1,16 @@
+{
+  "blockedBy": [
+    "T-006",
+    "T-013"
+  ],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P1 (docs/agents). File: CLAUDE.md. Reference: hare (gold standard meta-structure).\n\nProblem: ~356 lines of hexagonal theory + Salvo/SeaORM cheatsheet with ZERO workflow content. Also contains an inaccurate project-structure tree (claims src/db/ and a src/utils.rs file; reality is src/utils/ with utils/db.rs, and there is no src/db/).\n\nChange: Restructure to hare's shape: service-purpose intro -> Build Commands (cargo make / bacon / nextest) -> Story / Session Tracking (lift hare's, generic) -> architecture -> \"Adding a New Entity\" runbook (promote from TEMPLATE.md, which is deleted on init) -> Telemetry (link OPENTELEMETRY.md, inline middleware order) -> CI / Infrastructure -> Agent guardrails (e.g. the clippy ratchet rule). Fix the structure tree to match reality. Drop the copy-pasted Tailwind/Alpine and SQLx blocks the siblings carry (do not introduce them here).\n\nAcceptance: CLAUDE.md documents how to build, test, monitor, and add a feature; structure tree matches the actual src/ layout; Telemetry section links OPENTELEMETRY.md.\nDepends on: TPL-006 (so documented cargo make monitor/coverage exist), TPL-013 (so the Story section references a real .story/).",
+  "id": "T-010",
+  "order": 100,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-010] Rewrite CLAUDE.md as a runbook",
+  "type": "chore"
+}

@@ -1,0 +1,13 @@
+{
+  "blockedBy": [],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P0 (reproducibility). File: rust-toolchain.toml (new). Reference: keystore/aviary/metricstore (byte-identical).\n\nProblem: No toolchain pin, so builds float on whatever is installed and coverage tooling has no guaranteed llvm-tools-preview.\n\nChange: Create verbatim from a sibling:\n  [toolchain]\n  channel = \"1.96.0\"\n  components = [\"rust-analyzer\", \"rust-src\", \"llvm-tools-preview\"]\n  profile = \"default\"\n\nAcceptance: File exists at repo root; cargo --version resolves to 1.96.0; pinned channel (1.96.0) >= declared rust-version = \"1.92\" MSRV in Cargo.toml.",
+  "id": "T-002",
+  "order": 20,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-002] Pin the toolchain with rust-toolchain.toml",
+  "type": "task"
+}

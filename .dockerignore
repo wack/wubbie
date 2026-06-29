@@ -1,0 +1,70 @@
+# Docker ignore file for Rust project
+
+# Build artifacts
+target/
+**/target/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Development files
+.env*
+docker-compose.yml
+docker-compose.yaml
+
+# Test artifacts
+coverage/
+*.profraw
+
+# Temporary files
+tmp/
+temp/
+
+# Node modules (if any)
+node_modules/
+
+# Logs
+*.log
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Cache files
+.cache/
+*.cache
+
+# CI/CD files
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Other build tools
+Makefile
+Makefile.toml
+justfile
+
+# Keep these files
+!Cargo.toml
+!Cargo.lock
+!src/
+!crates/

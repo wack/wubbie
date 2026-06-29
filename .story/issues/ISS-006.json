@@ -1,0 +1,21 @@
+{
+  "components": [
+    "OPENTELEMETRY.md"
+  ],
+  "discoveredDate": "2026-06-27",
+  "id": "ISS-006",
+  "impact": "OPENTELEMETRY.md's \"Middleware Order\" section lists Logger, affix_state inject, Metrics, Tracing, metrics_middleware, transaction_middleware, api_key_store_middleware. The actual router (root() in src/controllers/mod.rs) hoops: OtelHttpMiddleware, CORS, Metrics, metrics_middleware, transaction_middleware, item_store_middleware. The doc references a non-existent api_key_store_middleware and omits OtelHttpMiddleware/CORS. Surfaced during T-010 (CLAUDE.md now documents the correct order and links OPENTELEMETRY.md for background). Pre-existing doc drift, filed rather than fixed inline in T-010.",
+  "location": [
+    "OPENTELEMETRY.md (Middleware Order section)",
+    "src/controllers/mod.rs:74"
+  ],
+  "phase": "modernization",
+  "relatedTickets": [
+    "T-010"
+  ],
+  "resolution": null,
+  "resolvedDate": null,
+  "severity": "low",
+  "status": "open",
+  "title": "OPENTELEMETRY.md Middleware Order section is stale (doesn't match src/controllers/mod.rs)"
+}

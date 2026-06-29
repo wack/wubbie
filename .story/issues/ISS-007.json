@@ -1,0 +1,21 @@
+{
+  "components": [
+    "src/middleware/mocks.rs"
+  ],
+  "discoveredDate": "2026-06-27",
+  "id": "ISS-007",
+  "impact": "src/middleware/mocks.rs item_store_mock_middleware() does `depot.inject(Box::new(MockItemStore::new()) as Box<dyn ItemStore>)`, but every items controller obtains the store as `depot.obtain::<Arc<dyn ItemStore>>()` (src/controllers/items/list.rs:20, read.rs:46, update.rs:61, etc.). The types don't match, so any route served with item_store_mock_middleware fails to find the store and returns 500 ('Store not available'). The middleware is effectively dead/broken. Discovered during T-014 (BDD scaffold), which works around it by injecting Arc::new(MockItemStore::new()) directly in tests/common/test_app.rs. Fix: change mocks.rs to inject `Arc<dyn ItemStore>` to match the controllers (and stores.rs). Pre-existing; filed rather than fixed inline in T-014.",
+  "location": [
+    "src/middleware/mocks.rs:16",
+    "src/controllers/items/list.rs:20"
+  ],
+  "phase": "modernization",
+  "relatedTickets": [
+    "T-014"
+  ],
+  "resolution": "Changed item_store_mock_middleware to inject Arc<dyn ItemStore> (was Box<dyn ItemStore>) so it matches what the items controllers obtain via depot.obtain::<Arc<dyn ItemStore>>() and the production ItemStoreMiddleware. Clippy green on the service crate.",
+  "resolvedDate": "2026-06-29",
+  "severity": "medium",
+  "status": "resolved",
+  "title": "item_store_mock_middleware injects Box<dyn ItemStore> but controllers obtain Arc<dyn ItemStore>"
+}

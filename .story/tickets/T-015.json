@@ -1,0 +1,15 @@
+{
+  "blockedBy": [
+    "T-006"
+  ],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P1 (layout). File: tern/schema.sql (new). Reference: aviary/keystore/metricstore.\n\nProblem: The template ships .tern/migrations/ (migration state) but no committed flat-schema snapshot, so there is nothing for a CI drift check to diff against.\n\nChange: Run the new generate-schema task (TPL-006) against the template's migrations and commit the normalized output to tern/schema.sql.\n\nAcceptance: tern/schema.sql exists and re-running generate-schema produces no diff.\nDepends on: TPL-006. Unblocks: an optional schema-drift CI job later.",
+  "id": "T-015",
+  "order": 150,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-015] Commit a generated tern/schema.sql snapshot",
+  "type": "task"
+}

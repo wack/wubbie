@@ -1,0 +1,15 @@
+{
+  "blockedBy": [
+    "T-003"
+  ],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P0 (build/style). File: Cargo.toml -> [package.metadata.bacon.jobs.clippy]. Reference: keystore.\n\nProblem: Job is `command = [\"cargo\", \"clippy\", \"--all-targets\", \"--workspace\"]` with no `-D warnings`, so a clean monitor/bacon run does NOT predict a clean CI.\n\nChange: Point the job at the clippy-strict alias from TPL-003:\n  [package.metadata.bacon.jobs.clippy]\n  command = [\"cargo\", \"clippy-strict\"]\n  need_stdout = false\n\nAcceptance: Bacon's clippy job fails on warnings, matching the CI clippy command exactly; config still lives under [package.metadata.bacon] (no bacon.toml).\nDepends on: TPL-003.",
+  "id": "T-004",
+  "order": 40,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-004] Make the bacon clippy job blocking and CI-identical",
+  "type": "task"
+}

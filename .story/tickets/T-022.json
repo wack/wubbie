@@ -1,0 +1,13 @@
+{
+  "blockedBy": [],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P2 (CI, OPTIONAL). Files: openapi.json (new), .github/workflows/on-push.yml. Reference: keystore/metricstore.\n\nProblem: The template only validates that the OpenAPI spec generates; it does not catch an out-of-date committed spec. Policy decision first: aviary gitignores openapi.json and only checks generation, so committing it is a deliberate choice.\n\nChange (if adopting): Commit openapi.json, and in generate-openapi add `git diff --exit-code openapi.json` with a helpful \"run cargo make generate-openapi\" error message.\n\nAcceptance: a stale committed openapi.json fails the PR check.",
+  "id": "T-022",
+  "order": 220,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-022] (optional) Commit openapi.json and add a drift check",
+  "type": "task"
+}

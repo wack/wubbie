@@ -1,0 +1,13 @@
+{
+  "blockedBy": [],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P1 (layout/process). Files: spec/** (placeholder .feature files), tests/cucumber/{main.rs,world.rs,steps/mod.rs}, tests/common/{mod.rs,test_app.rs,test_client.rs}, tests/fixtures/.gitkeep, Cargo.toml ([[test]] + cucumber dev-dependency). Reference: aviary (only repo with a working harness).\n\nProblem: The template has a single flat integration test and no spec/, despite its CLAUDE.md preaching \"fast, deterministic integration tests\" with mocks and the repo shipping a bdd-webserver skill that targets exactly this workflow.\n\nChange:\n  - Add the cucumber dev-dependency and `[[test]] name = \"cucumber\" harness = false` to Cargo.toml.\n  - Vendor aviary's tests/cucumber/ harness, tests/common/ helpers (test_app.rs, test_client.rs), and a spec/ tree with one placeholder feature.\n  - Use in-memory mock repositories — NEVER a real database in BDD tests.\n\nAcceptance: `cargo make integ` (or `cargo test --test cucumber`) runs the placeholder feature green; no real I/O occurs in the test run.",
+  "id": "T-014",
+  "order": 140,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-014] Add the BDD / cucumber test scaffold",
+  "type": "task"
+}

@@ -1,0 +1,13 @@
+{
+  "blockedBy": [],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P2 (CI/process). File: .github/CODEOWNERS (new). Reference: none — absent fleet-wide; the template should set the standard.\n\nChange: Add a default owner and any path-specific owners.\n\nAcceptance: new PRs auto-request review from the configured owners.",
+  "id": "T-018",
+  "order": 180,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-018] Add CODEOWNERS",
+  "type": "chore"
+}

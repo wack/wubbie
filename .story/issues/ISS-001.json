@@ -1,0 +1,22 @@
+{
+  "components": [
+    "Makefile.toml",
+    "crates/client/build.rs"
+  ],
+  "discoveredDate": "2026-06-27",
+  "id": "ISS-001",
+  "impact": "`cargo make generate-openapi` fails with \"package ID specification `__SERVICE_NAME__` did not match any packages\" because the Makefile.toml task references the uppercase placeholder `__SERVICE_NAME__` while the actual workspace package is `__service_name__`. Because `crates/client/build.rs` panics when `../openapi.json` is absent, and the spec can only be produced by this broken task, any full workspace build/check fails — including `cargo clippy-strict`, `cargo build`, and `cargo test`. The clippy-strict alias (T-003) resolves and invokes clippy correctly; the failure is in this unrelated build prerequisite.",
+  "location": [
+    "Makefile.toml (generate-openapi task)",
+    "crates/client/build.rs:13"
+  ],
+  "phase": "modernization",
+  "relatedTickets": [
+    "T-003"
+  ],
+  "resolution": "Two distinct defects blocked the workspace build; both fixed.\n\n1. Package-name mismatch: the server package/binary is `__service_name__` (snake) but several cargo invocations used the kebab `__SERVICE_NAME__`, so `cargo make generate-openapi` failed with \"package ID `__SERVICE_NAME__` did not match any packages\". Fixed `-p` and `target/release/<bin>` references in Makefile.toml (generate-openapi), crates/client/Makefile.toml (generate-openapi + pre-build), .github/workflows/on-push.yml (build + export), and .claude/scripts/enumerate-endpoints.sh (get_binary_path). The `-p __SERVICE_NAME__-client` references are correct (the client package legitimately uses the kebab name) and were left unchanged.\n\n2. build.rs path bug: crates/client/build.rs read `../openapi.json`, but build scripts run with CWD = the crate dir, so that resolved to crates/openapi.json — while generate-openapi/CI/export-openapi all write the spec to the workspace root. Changed to `../../openapi.json` (crates/<service>-client -> workspace root); depth stays correct after T-020's dir rename.\n\nVerified end-to-end: `cargo make generate-openapi` (exit 0, valid openapi.json), `cargo build --workspace` (exit 0), and a full instantiation in a throwaway copy (`init-service.sh payment-gateway`) followed by `cargo clippy --all-targets --workspace -- -D warnings` (exit 0, fully green). On the un-instantiated template, clippy-strict still emits one non_snake_case warning for the `__SERVICE_NAME__-client` crate ident — this is purely the uppercase placeholder and disappears after instantiation, so it is expected, not a defect.",
+  "resolvedDate": "2026-06-28",
+  "severity": "high",
+  "status": "resolved",
+  "title": "generate-openapi task uses wrong package name (__SERVICE_NAME__ vs __service_name__), blocking workspace build"
+}

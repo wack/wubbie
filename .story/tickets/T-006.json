@@ -1,0 +1,15 @@
+{
+  "blockedBy": [
+    "T-003"
+  ],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P1 (build/process). File: Makefile.toml. Reference: aviary (richest), keystore, hare.\n\nProblem: Missing tasks the fleet relies on: monitor (Claude Code's Monitor tool invokes it), coverage/coverage-llvm-cov, generate-schema, and a blocking clippy/clippy-flow override. (CARGO_MAKE_COVERAGE_PROVIDER = \"llvm-cov\" already set in [env].)\n\nChange: Add:\n  - [tasks.monitor]: command = \"bacon\", args = [\"--headless\", \"--summary\", \"--no-help-line\"]\n  - [tasks.coverage] (alias -> coverage-llvm-cov) and [tasks.coverage-llvm-cov] — copy from keystore/aviary\n  - [tasks.generate-schema] — throwaway postgres:18-alpine + pg_dump -> tern/schema.sql (match existing pg task image). Copy from aviary.\n  - [tasks.clippy-flow] (or [tasks.clippy]) override running `cargo clippy-strict` so cargo make and bacon use the same gate.\n\nAcceptance: cargo make monitor, cargo make coverage, cargo make generate-schema all succeed; clippy task fails on warnings.\nDepends on: TPL-003 (alias). Enables: TPL-015 (schema snapshot).",
+  "id": "T-006",
+  "order": 60,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-006] Add missing cargo-make tasks (monitor/coverage/generate-schema/clippy)",
+  "type": "task"
+}

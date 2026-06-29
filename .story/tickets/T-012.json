@@ -1,0 +1,13 @@
+{
+  "blockedBy": [],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P1 (process). File: .claude/scripts/session-start.sh. Reference: aviary/keystore/metricstore/carnegie.\n\nProblem: The template is the only server-template whose cloud session-start script lacks the block that rewrites GitHub URLs with GITHUB_TOKEN, so cloud sessions can't fetch private git crates (e.g. a *-client dependency).\n\nChange: Copy the `git config --global url.\"https://x-access-token:${GITHUB_TOKEN}@github.com/\".insteadOf ...` block from a sibling's script.\n\nAcceptance: a cloud session can resolve a private git dependency.",
+  "id": "T-012",
+  "order": 120,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-012] Add the GITHUB_TOKEN git-auth block to session-start.sh",
+  "type": "task"
+}

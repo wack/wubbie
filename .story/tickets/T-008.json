@@ -1,0 +1,15 @@
+{
+  "blockedBy": [
+    "T-006"
+  ],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P1 (CI). File: .github/workflows/on-merge.yml. Reference: hare.\n\nProblem: No coverage job; the build job has no shared-key so nothing reuses its warmed cache; Docker/helm/checkout actions are a major version behind.\n\nChange:\n  - Add a coverage job running `cargo make coverage-flow` via wack/gh-actions/setup-rust@trunk with shared-key: rust-ci and extra-tools: cargo-nextest,cargo-llvm-cov. Add \"coverage\" to pr-ready.needs.\n  - Give the build job shared-key: rust-ci + extra-tools: cargo-nextest so the two share a cache namespace.\n  - Bump pins: actions/checkout@v4->v5, docker/setup-buildx-action@v3->v4, docker/login-action@v3->v4, docker/build-push-action@v6->v7, azure/setup-helm@v4->v5.\n\nAcceptance: merge-queue runs produce coverage; pr-ready depends on it; build and coverage share the rust-ci cache key; all action pins match hare's set.\nDepends on: TPL-006 (coverage-flow reachable via cargo-make).",
+  "id": "T-008",
+  "order": 80,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-008] Enhance on-merge.yml (coverage + shared cache + pin bumps)",
+  "type": "task"
+}

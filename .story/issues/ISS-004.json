@@ -1,0 +1,16 @@
+{
+  "components": [
+    "autonomous"
+  ],
+  "discoveredDate": "2026-06-27",
+  "id": "ISS-004",
+  "impact": "ssh shorthand git@github.com:org/repo.git not rewritten",
+  "location": [],
+  "phase": null,
+  "relatedTickets": [],
+  "resolution": "Duplicate of ISS-003, which consolidates both T-012 review findings (ssh shorthand + --add idempotency) as a single fleet-wide hardening item. Auto-filed by the review verification step; closing as duplicate.",
+  "resolvedDate": "2026-06-27",
+  "severity": "medium",
+  "status": "resolved",
+  "title": "[robustness] ssh shorthand git@github.com:org/repo.git not rewritten"
+}

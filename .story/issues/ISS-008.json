@@ -1,0 +1,16 @@
+{
+  "components": [
+    "autonomous"
+  ],
+  "discoveredDate": "2026-06-27",
+  "id": "ISS-008",
+  "impact": "items step creates app/store inline; fine for single-request scenarios, multi-step state plumbing deferred until a real multi-request flow needs it",
+  "location": [],
+  "phase": null,
+  "relatedTickets": [],
+  "resolution": null,
+  "resolvedDate": null,
+  "severity": "medium",
+  "status": "open",
+  "title": "[design] items step creates app/store inline; fine for single-request scenarios, multi-st"
+}

@@ -1,0 +1,13 @@
+{
+  "blockedBy": [],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P2 (layout/process). Files: scripts/init-service.sh, crates/client/ (-> crates/<service>-client/). Reference: keystore (keystore-client/), metricstore (metricstore-client/).\n\nProblem: The directory is generically named crates/client/ while the package is __service_name__-client — mature siblings name the directory to match the package.\n\nChange: Update init-service.sh to rename crates/client/ -> crates/<service-name>-client/ (and fix the members entry in Cargo.toml) during the __service_name__ substitution.\n\nAcceptance: after init-service.sh, the client crate directory matches its package name and the workspace builds.",
+  "id": "T-020",
+  "order": 200,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-020] Rename the generic client crate to the package-matched convention",
+  "type": "task"
+}

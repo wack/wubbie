@@ -1,0 +1,18 @@
+{
+  "components": [
+    ".claude/scripts/session-start.sh"
+  ],
+  "discoveredDate": "2026-06-27",
+  "id": "ISS-003",
+  "impact": "The GITHUB_TOKEN git-auth block in .claude/scripts/session-start.sh (added in T-012, copied verbatim from the fleet siblings) has two latent hardening opportunities noted in code review: (1) it rewrites https://github.com/ and ssh://git@github.com/ but NOT the SSH shorthand form git@github.com:org/repo.git; (2) the `--add` for the ssh rewrite appends a duplicate entry if the script runs more than once in a session (not idempotent). Neither affects this template today: its only private git dep (mvc-helpers) uses the covered ssh:// URL form, session-start runs once per cloud session, and the block is intentionally byte-identical to keystore/aviary/metricstore/carnegie for fleet parity. Fixing should be a coordinated fleet-wide change across all sibling session-start.sh scripts (not a unilateral template divergence), hence filed rather than fixed in T-012.",
+  "location": [],
+  "phase": "modernization",
+  "relatedTickets": [
+    "T-012"
+  ],
+  "resolution": null,
+  "resolvedDate": null,
+  "severity": "low",
+  "status": "open",
+  "title": "Fleet-wide: harden session-start.sh git-auth block (ssh shorthand + idempotent --add)"
+}

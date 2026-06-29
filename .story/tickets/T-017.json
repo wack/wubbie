@@ -1,0 +1,13 @@
+{
+  "blockedBy": [],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P2 (CI). File: .github/dependabot.yml (new). Reference: none — absent fleet-wide; the template should set the standard.\n\nChange: Configure cargo and github-actions ecosystems with a sane schedule.\n\nAcceptance: Dependabot opens update PRs for both ecosystems.",
+  "id": "T-017",
+  "order": 170,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-017] Add dependabot.yml",
+  "type": "chore"
+}

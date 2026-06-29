@@ -1,0 +1,13 @@
+{
+  "blockedBy": [],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P0 (docs). File: README.md. Reference: hare/aviary (mature READMEs).\n\nProblem: Current README is a leftover SeaORM \"Running Migrator CLI\" cheatsheet — no overview, architecture, usage, or development instructions.\n\nChange: Rewrite with sections: Overview, Architecture, Usage, Configuration, Development, Project Structure. Use __service_name__ placeholders so init-service.sh substitutes them.\n\nAcceptance: README describes the service template and its dev workflow; no stray migrator cheatsheet remains; placeholders resolve correctly after init-service.sh.",
+  "id": "T-005",
+  "order": 50,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-005] Replace the broken README.md",
+  "type": "chore"
+}

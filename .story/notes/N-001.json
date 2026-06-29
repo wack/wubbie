@@ -1,0 +1,13 @@
+{
+  "content": "From template-modernization-tickets.md trailing section. The `carnegie` repo (~/workspace/wack/carnegie) needs the same diffs as TPL-001/002/004/006/007/008/009/013, PLUS two regressions unique to it:\n\n- Restore Docker OTel provenance build-args: its build-push-action step passes no build-args, so images carry none of the VCS_REF_* / CICD_PIPELINE_* attributes.\n- Add a top-level build.rs (+ vergen-gitcl build-dependency): it has only a `fn main(){}` stub and stamps no provenance.\n- Also: complete its thin .story/, add an OPENTELEMETRY.md, and wire a cucumber harness for its orphaned spec/*.feature files.\n\nBack-port FROM carnegie: its \"# Carnegie Overview\" service-purpose intro paragraph is the kind of intro the template's CLAUDE.md lacks (TPL-010 / T-010) — steal the idea.\n\nTracking this here only for traceability; carnegie work belongs in carnegie's own .story/.",
+  "createdDate": "2026-06-27",
+  "id": "N-001",
+  "status": "active",
+  "tags": [
+    "carnegie",
+    "out-of-scope",
+    "parity"
+  ],
+  "title": "Carnegie parity work (separate repo — out of scope here)",
+  "updatedDate": "2026-06-27"
+}

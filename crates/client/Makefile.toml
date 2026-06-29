@@ -1,0 +1,64 @@
+# Makefile.toml for __SERVICE_NAME__-client crate
+# This file extends the workspace Makefile.toml
+
+[config]
+default_to_workspace = false
+
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+
+[tasks.generate-openapi]
+description = "Generate OpenAPI specification from the server"
+category = "Code Generation"
+workspace = false
+script_runner = "@shell"
+script = '''
+echo "Building server..."
+cargo build --release -p __service_name__
+echo "Exporting OpenAPI specification..."
+${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/target/release/__service_name__ export-openapi > ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/openapi.json
+echo "OpenAPI specification generated at ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/openapi.json"
+'''
+
+[tasks.pre-build]
+description = "Ensure OpenAPI spec exists before building client"
+category = "Build"
+script_runner = "@shell"
+script = '''
+if [ ! -f "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/openapi.json" ]; then
+    echo "OpenAPI specification not found. Generating..."
+    cargo build --release -p __service_name__
+    ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/target/release/__service_name__ export-openapi > ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/openapi.json
+fi
+'''
+
+[tasks.build]
+description = "Build the __SERVICE_NAME__-client crate"
+category = "Build"
+dependencies = ["pre-build"]
+command = "cargo"
+args = ["build", "-p", "__SERVICE_NAME__-client"]
+
+[tasks.check]
+description = "Check the __SERVICE_NAME__-client crate"
+category = "Build"
+command = "cargo"
+args = ["check", "-p", "__SERVICE_NAME__-client"]
+
+[tasks.fmt]
+description = "Format the __SERVICE_NAME__-client crate"
+category = "Development"
+command = "cargo"
+args = ["fmt", "-p", "__SERVICE_NAME__-client"]
+
+[tasks.check-format]
+description = "Check formatting of the __SERVICE_NAME__-client crate"
+category = "Development"
+command = "cargo"
+args = ["fmt", "-p", "__SERVICE_NAME__-client", "--", "--check"]
+
+[tasks.clippy]
+description = "Run clippy on the __SERVICE_NAME__-client crate"
+category = "Development"
+command = "cargo"
+args = ["clippy", "-p", "__SERVICE_NAME__-client", "--", "-D", "warnings"]

@@ -1,0 +1,15 @@
+{
+  "blockedBy": [
+    "T-004"
+  ],
+  "claimedBySession": "b7ef35c5-a9c1-466a-a5d5-4660be5ee93b",
+  "completedDate": "2026-06-27",
+  "createdDate": "2026-06-27",
+  "description": "Priority: P1 (style). File: Cargo.toml (root [workspace.lints] + [lints] workspace = true on each member). Reference: hare (strict, gold standard) or aviary (advisory).\n\nProblem: No lint policy is declared. Decide and encode one.\n\nChange (recommended — hare's strict model):\n  - [workspace.lints.rust] with unsafe_code = \"deny\".\n  - [workspace.lints.clippy] deny-by-default groups (suspicious, complexity, perf, cargo at priority = -1), a pedantic = \"warn\" ratchet, cherry-picked denies (cloned_instead_of_copied, filter_map_next, float_cmp, implicit_clone, manual_assert), and a documented allow list.\n  - [lints] workspace = true on the root package and on crates/migrations/Cargo.toml and crates/client/Cargo.toml.\n  - Lighter alternative (aviary): [workspace.lints.clippy] all = \"warn\" and rely on the -D warnings command (TPL-003) for enforcement, keeping plain cargo build non-fatal.\n\nAcceptance: cargo clippy-strict passes on the placeholder template code; all three workspace members opt into the shared lints.\nNote: separate from TPL-004 (different region of Cargo.toml); sequence after it.",
+  "id": "T-007",
+  "order": 70,
+  "phase": "modernization",
+  "status": "complete",
+  "title": "[TPL-007] Add a [workspace.lints] table",
+  "type": "task"
+}
