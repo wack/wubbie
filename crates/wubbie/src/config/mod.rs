@@ -15,6 +15,7 @@ pub use loader::{LayeredConfig, ModelConfigArgs, load_model_config};
 pub use model::{CONTEXT_LENGTH, ModelConfig, ModelSize, PartialModelConfig};
 pub use run::{RunConfig, TrainingConfig};
 pub use serve::ServeSubcommand;
+pub use tokenizer::TokenizerSubcommand;
 pub use train::TrainSubcommand;
 
 mod cli;
@@ -24,4 +25,5 @@ mod loader;
 mod model;
 mod run;
 mod serve;
+mod tokenizer;
 mod train;

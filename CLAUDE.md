@@ -45,7 +45,7 @@ are added as members in the root `Cargo.toml`.
             ├── cmd/        # subcommand handlers (one per subcommand)
             ├── backend.rs  # compile-time backend selection (ndarray / cuda)
             ├── model.rs    # model definition
-            ├── tokenizer.rs# tokenizer loading (tokenizers crate)
+            ├── tokenizer.rs# byte-level BPE tokenizer: train + load (tokenizers crate)
             ├── training.rs # training loop
             ├── inference.rs# inference entry points
             └── weights.rs  # safetensors (de)serialization

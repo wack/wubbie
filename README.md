@@ -12,6 +12,42 @@ It is built on an all-Rust stack:
 | Tokenizer  | [`tokenizers`](https://github.com/huggingface/tokenizers) |
 | Weights    | [`safetensors`](https://github.com/huggingface/safetensors) |
 
+## Tokenizer
+
+The tokenizer is a GPT-2-style **byte-level BPE** trained with the
+[`tokenizers`] crate. Two things are **locked** at training time and feed every
+downstream phase, so they live as constants in `src/tokenizer.rs`:
+
+- **Vocabulary size:** `32_000` (`tokenizer::VOCAB_SIZE`). The model config
+  sizes its embedding table to this, and the loss-at-init ≈ `ln(vocab)` check is
+  taken against it.
+- **Special-token inventory** (`tokenizer::SPECIAL_TOKENS`), reserved as atomic
+  tokens at fixed low ids — **fixed here and not extendable later**:
+
+  | id | token          | role                       |
+  | -- | -------------- | -------------------------- |
+  | 0  | `<|pad|>`      | padding / ignore index     |
+  | 1  | `<|bos|>`      | beginning of sequence      |
+  | 2  | `<|eos|>`      | end of sequence            |
+  | 3  | `<|im_start|>` | chat-template turn start   |
+  | 4  | `<|im_end|>`   | chat-template turn end     |
+
+  The chat-template *rendering format* is finalized later (Phase 3 SFT, applied
+  identically at Phase 6 serving); the tokens themselves exist now.
+
+Train it on a corpus slice with `wubbie tokenizer`:
+
+```bash
+# `--input` is a text file or a directory of `.txt` files
+cargo run -p wubbie -- tokenizer --input corpus/ --output tokenizer.json
+```
+
+After training it runs the acceptance checks against a sample of the corpus:
+exact `decode(encode(text)) == text` round-trip, each special token encodes
+atomically, and the ~3.5–4 chars/token compression ratio (a miss warns).
+
+[`tokenizers`]: https://github.com/huggingface/tokenizers
+
 Trained weights do **not** live in this repository — they are published to a
 separate HuggingFace model repo. This repo holds the code that produces and
 serves them.
@@ -27,10 +63,10 @@ serves them.
 │           ├── lib.rs
 │           ├── bin/main.rs # CLI entry point (thin: parse → dispatch)
 │           ├── config/     # CLI (clap) layer + model/run configuration
-│           ├── cmd/        # subcommand handlers (train / generate / serve)
+│           ├── cmd/        # subcommand handlers (tokenizer / train / generate / serve)
 │           ├── backend.rs  # compile-time backend selection (CPU / CUDA)
 │           ├── model.rs    # model definition
-│           ├── tokenizer.rs# tokenizer loading
+│           ├── tokenizer.rs# byte-level BPE tokenizer (train + load)
 │           ├── training.rs # training loop
 │           ├── inference.rs# inference entry points
 │           └── weights.rs  # safetensors (de)serialization
@@ -76,10 +112,11 @@ If you have [`cargo-make`](https://github.com/sagiegurari/cargo-make)
 installed, `cargo make ci` runs the full CI gate (format check → clippy →
 build → test) locally.
 
-The `wubbie` CLI scaffolds three subcommands; they are wired up but not yet
-implemented:
+The `wubbie` CLI exposes four subcommands. `tokenizer` is implemented (see
+above); `train`, `generate`, and `serve` are wired up but not yet implemented:
 
 ```bash
+cargo run -p wubbie -- tokenizer --input corpus/   # train the BPE tokenizer
 cargo run -p wubbie -- train
 cargo run -p wubbie -- generate "Once upon a time"   # or `-` to read stdin
 cargo run -p wubbie -- serve

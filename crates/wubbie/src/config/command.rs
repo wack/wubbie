@@ -3,8 +3,8 @@
 use anyhow::Result;
 use clap::Subcommand;
 
-use super::{GenerateSubcommand, ServeSubcommand, TrainSubcommand};
-use crate::cmd::{Generate, Serve, Train};
+use super::{GenerateSubcommand, ServeSubcommand, TokenizerSubcommand, TrainSubcommand};
+use crate::cmd::{Generate, Serve, Tokenizer, Train};
 
 /// A `Command` is one of the top-level commands accepted by the `wubbie` CLI.
 ///
@@ -14,6 +14,8 @@ use crate::cmd::{Generate, Serve, Train};
 /// structure: an `Args` struct in `config/` and a handler in `cmd/`.
 #[derive(Debug, Clone, Subcommand)]
 pub enum Command {
+    /// Train the byte-level BPE tokenizer on a corpus slice.
+    Tokenizer(TokenizerSubcommand),
     /// Train the model from a corpus.
     Train(TrainSubcommand),
     /// Generate text from a trained model.
@@ -26,6 +28,7 @@ impl Command {
     /// Dispatch the parsed arguments to the matching command handler.
     pub fn dispatch(self) -> Result<()> {
         match self {
+            Self::Tokenizer(args) => Tokenizer::new(args)?.dispatch(),
             Self::Train(args) => Train::new(args)?.dispatch(),
             Self::Generate(args) => Generate::new(args)?.dispatch(),
             Self::Serve(args) => Serve::new(args)?.dispatch(),

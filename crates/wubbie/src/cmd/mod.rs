@@ -7,8 +7,10 @@
 
 pub use generate::Generate;
 pub use serve::Serve;
+pub use tokenizer::Tokenizer;
 pub use train::Train;
 
 mod generate;
 mod serve;
+mod tokenizer;
 mod train;
