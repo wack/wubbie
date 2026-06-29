@@ -15,7 +15,7 @@ tokenizer, and [`safetensors`](https://github.com/huggingface/safetensors) for w
 
 ```bash
 cargo build                                              # build (CPU/ndarray backend)
-cargo test --workspace                                   # run the test suite
+cargo nextest run --workspace                            # run the test suite (requires cargo-nextest)
 cargo fmt --all                                          # format
 cargo clippy --all-targets --workspace -- -D warnings    # lint (the CI gate)
 cargo build --release --features cuda                    # build the CUDA backend (needs CUDA)
@@ -71,16 +71,44 @@ table together.
 ## Backends
 
 Burn is backend-generic; the concrete backend is chosen at compile time in `backend.rs` via
-crate features:
+crate features. Each backend pairs with the precision it ships with:
 
-- **`ndarray`** (default) — pure-Rust CPU backend, builds everywhere. This is what CI builds.
-- **`cuda`** — NVIDIA CUDA backend via CubeCL. Requires the CUDA toolkit at build time, so it is
-  intentionally **excluded from the default build and CI**. Code touching the CUDA backend is
+- **`ndarray`** (default) — pure-Rust CPU backend, builds everywhere. **f32.** This is what CI
+  builds.
+- **`cuda`** — NVIDIA CUDA backend via CubeCL, the cloud-training path. **bf16** (the locked
+  cloud recipe — see MULTI-1386). Requires the CUDA toolkit at build time, so it is intentionally
+  **excluded from the default build and CI**. Code touching the CUDA backend is
   `#[cfg(feature = "cuda")]`-gated; it is not compiled by `cargo build`/CI, so verify it builds on
   a CUDA host before relying on it.
+- **`wgpu`** — cross-platform WGPU backend via CubeCL (Metal on macOS, Vulkan on Linux/Windows,
+  DirectX 12 on Windows), the local-development path. **f32** (Metal does not implement bf16
+  arithmetic via WGPU). Compiled in a separate CI job (`wgpu-build`); actually running the
+  forward/backward path needs a GPU host. CubeCL's `#[cube]` macros require the crate-root
+  `#![recursion_limit = "256"]` set in `lib.rs`.
 
 Training uses `backend::TrainBackend` (an `Autodiff`-wrapped backend); inference uses
 `backend::Backend` directly.
+
+## Testing policy
+
+**The test suite must not flake.** Every test in this repository runs deterministically under the
+standard parallel `cargo nextest run` invocation. A flaky test is treated as a bug at parity with a
+failing test — find the race and fix it, do not paper over it with retries, `#[ignore]`,
+`--test-threads=1`, or `#[serial]` workarounds (those are *symptoms*, not fixes).
+
+Concrete consequences of this rule that have already shaped the code:
+
+- **The config loader does not read `std::env`.** Process env is captured once at the CLI
+  boundary (`config::read_model_env_overrides()`) into an `EnvOverrides` map that is threaded
+  through `load_model_config` and `TrainSubcommand::resolve_model_config`. Tests construct the
+  map explicitly and never call `set_var` / `Jail::set_env`. This rule exists because
+  `std::env::set_var` is process-global and not thread-safe, so any test that mutates env can
+  pollute concurrent tests reading env — a class of race that is impossible to eliminate while
+  the loader reads process env from inside parallel tests.
+- **New surfaces that depend on ambient process state** (env vars, current directory, network,
+  the system clock) **must follow the same pattern**: read the ambient state at a single
+  CLI-side seam, pass the captured value through pure functions, and inject explicit values in
+  tests.
 
 ## CI / Agent Guardrails
 
@@ -88,7 +116,8 @@ Training uses `backend::TrainBackend` (an `Autodiff`-wrapped backend); inference
   push (PR branches; excludes `trunk` and the merge queue) and `.github/workflows/on-merge.yml`
   runs on `merge_group` (the GitHub merge queue, if enabled). Both run the same jobs: `validate`
   (`cargo fmt --all --check`, `cargo clippy --all-targets --workspace --locked -- -D warnings`,
-  `cargo build --workspace --locked`, `cargo test --workspace --locked`) and `cuda-build`, which
+  `cargo build --workspace --locked`, `cargo nextest run --workspace --locked --no-tests=pass`)
+  and `cuda-build`, which
   compile-checks the `cuda` feature (`cargo build --no-default-features --features cuda`) — `cudarc`
   uses dynamic loading so it builds with no GPU/toolkit, but running it needs a GPU host. Both
   workflows expose a single gate job named **`⚡ PR Ready`**; keep that name identical across the two

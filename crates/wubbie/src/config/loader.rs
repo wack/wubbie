@@ -9,14 +9,26 @@
 //! layer or by the seeded defaults, so a missing value can't leak downstream. A
 //! field left unset by every layer with no default is a hard error rather than a
 //! silent `None`.
+//!
+//! ## Environment layer
+//!
+//! The env layer is **injected**, not read from `std::env` here. The CLI
+//! boundary captures `std::env::vars()` once into an [`EnvOverrides`] map (see
+//! [`read_model_env_overrides`]) and threads that map through; tests construct
+//! the map explicitly and never mutate process state. This rule exists because
+//! the test suite must stay deterministic — `std::env::set_var` is
+//! process-global and not thread-safe, and prior to MULTI-1407 the loader read
+//! `std::env` directly inside parallel tests, which produced cross-test env
+//! pollution and flakes.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use anyhow::{Result, anyhow, bail};
 use clap::Args;
 use figment::{
     Figment,
-    providers::{Env, Format, Json, Serialized, Toml},
+    providers::{Format, Json, Serialized, Toml},
 };
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -25,7 +37,16 @@ use super::{ModelConfig, PartialModelConfig};
 
 /// Environment-variable prefix for the model-config layer, e.g.
 /// `WUBBIE_MODEL_D_MODEL` or `WUBBIE_MODEL_NUM_LAYERS`.
-const MODEL_ENV_PREFIX: &str = "WUBBIE_MODEL_";
+pub const MODEL_ENV_PREFIX: &str = "WUBBIE_MODEL_";
+
+/// An env-style override layer: keys with the prefix already stripped and
+/// lowercased, values parsed as JSON (numbers, bools, …) with a string
+/// fallback for anything that isn't valid JSON.
+///
+/// Builders typically construct this via [`parse_env_overrides`] from a
+/// `(key, value)` iterator (process env or an explicit test map) rather than
+/// populating the map by hand.
+pub type EnvOverrides = BTreeMap<String, serde_json::Value>;
 
 /// A builder that layers configuration sources by precedence and extracts a
 /// fully-specified `T`. Each `merge`/`with_*` adds a higher-precedence layer:
@@ -78,11 +99,16 @@ impl LayeredConfig {
         }
     }
 
-    /// Merge environment variables sharing `prefix`, mapped to lowercase keys
-    /// (`WUBBIE_MODEL_D_MODEL` → `d_model`).
+    /// Merge an env-style override layer.
+    ///
+    /// The map is treated as a `Serialized` defaults source, so a missing key
+    /// contributes nothing and an unknown key surfaces as a typed extraction
+    /// error rather than being silently dropped. The layer does **not** read
+    /// `std::env` — see the module docs for why; build the map via
+    /// [`parse_env_overrides`].
     #[must_use]
-    pub fn with_env(mut self, prefix: &str) -> Self {
-        self.figment = self.figment.merge(Env::prefixed(prefix));
+    pub fn with_env(mut self, env: &EnvOverrides) -> Self {
+        self.figment = self.figment.merge(Serialized::defaults(env));
         self
     }
 
@@ -103,6 +129,43 @@ impl LayeredConfig {
             .extract()
             .map_err(|err| anyhow!("invalid {what} configuration: {err}"))
     }
+}
+
+/// Filter, strip-prefix, lowercase, and JSON-parse a `(key, value)` iterator
+/// (typically `std::env::vars()`) into an [`EnvOverrides`] map.
+///
+/// Keys not starting with `prefix` are dropped. Each retained value is parsed
+/// as JSON so `"2222"` becomes a number, `"true"` a bool, etc.; any value that
+/// is not valid JSON is kept as a raw string so figment can surface a typed
+/// error against the destination field rather than silently dropping the
+/// override.
+pub fn parse_env_overrides<I, K, V>(prefix: &str, vars: I) -> EnvOverrides
+where
+    I: IntoIterator<Item = (K, V)>,
+    K: AsRef<str>,
+    V: AsRef<str>,
+{
+    let mut out = EnvOverrides::new();
+    for (key, value) in vars {
+        let Some(stripped) = key.as_ref().strip_prefix(prefix) else {
+            continue;
+        };
+        let key = stripped.to_ascii_lowercase();
+        let raw = value.as_ref();
+        let value =
+            serde_json::from_str(raw).unwrap_or_else(|_| serde_json::Value::String(raw.to_owned()));
+        out.insert(key, value);
+    }
+    out
+}
+
+/// Read the process environment for [`MODEL_ENV_PREFIX`]-prefixed variables.
+///
+/// This is the one CLI-side place that touches `std::env`; the loader itself
+/// stays pure. Tests construct an [`EnvOverrides`] map directly and never call
+/// this.
+pub fn read_model_env_overrides() -> EnvOverrides {
+    parse_env_overrides(MODEL_ENV_PREFIX, std::env::vars())
 }
 
 /// CLI flags overriding individual model dimensions.
@@ -153,18 +216,23 @@ impl ModelConfigArgs {
 /// Resolve a fully-specified [`ModelConfig`] from layered sources.
 ///
 /// Precedence (low → high): the named-size `base`, an optional config `file`,
-/// the `WUBBIE_MODEL_` environment layer, then the CLI override flags. The
-/// result has no `Option`s; because `base` supplies every field, resolution
-/// always succeeds for the named sizes.
+/// the `env` layer, then the CLI override flags. The result has no `Option`s;
+/// because `base` supplies every field, resolution always succeeds for the
+/// named sizes.
+///
+/// The `env` map is supplied by the caller — typically
+/// [`read_model_env_overrides`] at the CLI boundary, or an empty/explicit map
+/// in tests. The loader itself does not touch `std::env`.
 pub fn load_model_config(
     base: &ModelConfig,
     file: Option<&Path>,
+    env: &EnvOverrides,
     overrides: &ModelConfigArgs,
 ) -> Result<ModelConfig> {
     LayeredConfig::new()
         .with_defaults(base)
         .with_optional_file(file)?
-        .with_env(MODEL_ENV_PREFIX)
+        .with_env(env)
         .with_overrides(&overrides.to_partial())
         .extract("model")
 }
@@ -188,11 +256,15 @@ mod tests {
         }
     }
 
+    fn no_env() -> EnvOverrides {
+        EnvOverrides::new()
+    }
+
     #[test]
     fn defaults_only_returns_the_base_unchanged() {
         let base = ModelConfig::gpt2_small();
         let resolved =
-            load_model_config(&base, None, &ModelConfigArgs::default()).expect("resolves");
+            load_model_config(&base, None, &no_env(), &ModelConfigArgs::default()).expect("ok");
         assert_eq!(resolved, base);
     }
 
@@ -200,7 +272,7 @@ mod tests {
     fn unset_flags_do_not_clobber_the_base() {
         let base = ModelConfig::debug_tiny();
         let resolved =
-            load_model_config(&base, None, &ModelConfigArgs::default()).expect("resolves");
+            load_model_config(&base, None, &no_env(), &ModelConfigArgs::default()).expect("ok");
         assert_eq!(resolved, base);
     }
 
@@ -212,6 +284,7 @@ mod tests {
             let resolved = load_model_config(
                 &base,
                 Some(Path::new("model.toml")),
+                &no_env(),
                 &ModelConfigArgs::default(),
             )
             .expect("resolves");
@@ -232,7 +305,8 @@ mod tests {
             let resolved = load_model_config(
                 &base,
                 Some(Path::new("model.toml")), // num_layers = 6
-                &overrides_with_layers(3),     // num_layers = 3 (wins)
+                &no_env(),
+                &overrides_with_layers(3), // num_layers = 3 (wins)
             )
             .expect("resolves");
             assert_eq!(resolved.num_layers, 3);
@@ -244,13 +318,17 @@ mod tests {
     fn env_beats_file_and_flag_beats_env() {
         Jail::expect_with(|jail| {
             jail.create_file("model.toml", "d_ff = 1111\n")?;
-            jail.set_env("WUBBIE_MODEL_D_FF", "2222");
+            // Inject env via the explicit map, not the process env — so this
+            // test cannot pollute concurrent tests (the whole reason
+            // `with_env` no longer reads `std::env`).
+            let env = parse_env_overrides(MODEL_ENV_PREFIX, [("WUBBIE_MODEL_D_FF", "2222")]);
             let base = ModelConfig::gpt2_small();
 
             // Env outranks the file...
             let resolved = load_model_config(
                 &base,
                 Some(Path::new("model.toml")),
+                &env,
                 &ModelConfigArgs::default(),
             )
             .expect("resolves");
@@ -262,7 +340,8 @@ mod tests {
                 ..ModelConfigArgs::default()
             };
             let resolved =
-                load_model_config(&base, Some(Path::new("model.toml")), &overrides).expect("ok");
+                load_model_config(&base, Some(Path::new("model.toml")), &env, &overrides)
+                    .expect("ok");
             assert_eq!(resolved.d_ff, 3333);
             Ok(())
         });
@@ -305,5 +384,29 @@ mod tests {
             );
             Ok(())
         });
+    }
+
+    #[test]
+    fn parse_env_overrides_strips_prefix_and_parses_values() {
+        let env = parse_env_overrides(
+            "WUBBIE_MODEL_",
+            [
+                ("WUBBIE_MODEL_D_FF", "2222"),
+                ("WUBBIE_MODEL_NORM_FIRST", "true"),
+                ("UNRELATED_VAR", "ignored"),
+            ],
+        );
+        assert_eq!(env.get("d_ff"), Some(&serde_json::json!(2222)));
+        assert_eq!(env.get("norm_first"), Some(&serde_json::json!(true)));
+        assert!(!env.contains_key("unrelated_var"));
+    }
+
+    #[test]
+    fn parse_env_overrides_falls_back_to_string_for_invalid_json() {
+        let env = parse_env_overrides("WUBBIE_MODEL_", [("WUBBIE_MODEL_D_FF", "not-a-number")]);
+        assert_eq!(
+            env.get("d_ff"),
+            Some(&serde_json::Value::String("not-a-number".to_owned())),
+        );
     }
 }
