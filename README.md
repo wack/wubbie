@@ -42,20 +42,31 @@ downstream phase, so they live as constants in `src/tokenizer.rs`:
 
 ### Corpus source
 
-The filtered CommonPile slice **stays on Hugging Face** (MULTI-1378) and is
-pulled on demand via the pure-Rust [`hf-hub`] client, pinned by repo + revision
-for reproducibility — nothing is mirrored into object storage. Shards are JSON
-Lines (`.jsonl` / `.jsonl.gz`, document text under a configurable field) or
-plain text (`.txt` / `.txt.gz`); `.gz` is decompressed transparently. The corpus
-reader lives in `src/corpus.rs` and is shared with the later tokenize step.
+The filtered CommonPile slice **stays on Hugging Face** (MULTI-1378), pinned by
+repo + revision for reproducibility — nothing is mirrored into object storage.
+Shards are JSON Lines (`.jsonl` / `.jsonl.gz`, document text under a configurable
+field) or plain text (`.txt` / `.txt.gz`); `.gz` is decompressed transparently.
+The corpus reader lives in `src/corpus.rs` and is shared with the later tokenize
+step.
 
-Train on the pinned HF slice, or on a local path for tiny/offline runs:
+Downloading is a **separate, explicit step** (`wubbie download`), because the
+slice is large (hundreds of GB). It pulls shards into the local Hugging Face
+cache via the pure-Rust [`hf-hub`] client, reports progress, and **skips
+already-cached files** so an interrupted run resumes. `wubbie tokenizer` then
+trains from that cache and never downloads — if a shard is missing it errors and
+tells you to run `download` first.
 
 ```bash
-# Pull the corpus from a pinned Hugging Face dataset (text under `text`)
+# 1. Download the pinned slice into the HF cache (resumable, shows progress).
+#    Point --cache-dir at a big volume for large corpora.
+cargo run -p wubbie -- download \
+  --hf-repo owner/filtered-commonpile --hf-revision <sha> \
+  --cache-dir /mnt/big/hf
+
+# 2. Train the tokenizer from the cache (no download)...
 cargo run -p wubbie -- tokenizer \
   --hf-repo owner/filtered-commonpile --hf-revision <sha> \
-  --output tokenizer.json
+  --cache-dir /mnt/big/hf --output tokenizer.json
 
 # ...or train on local shards: a file, or a directory of .jsonl/.jsonl.gz/.txt
 cargo run -p wubbie -- tokenizer --input corpus/ --text-field text
@@ -83,7 +94,7 @@ serves them.
 │           ├── lib.rs
 │           ├── bin/main.rs # CLI entry point (thin: parse → dispatch)
 │           ├── config/     # CLI (clap) layer + model/run configuration
-│           ├── cmd/        # subcommand handlers (tokenizer / train / generate / serve)
+│           ├── cmd/        # subcommand handlers (download / tokenizer / train / generate / serve)
 │           ├── backend.rs  # compile-time backend selection (CPU / CUDA)
 │           ├── corpus.rs   # corpus access (HF via hf-hub / local; JSONL+gz)
 │           ├── model.rs    # model definition
@@ -133,10 +144,12 @@ If you have [`cargo-make`](https://github.com/sagiegurari/cargo-make)
 installed, `cargo make ci` runs the full CI gate (format check → clippy →
 build → test) locally.
 
-The `wubbie` CLI exposes four subcommands. `tokenizer` is implemented (see
-above); `train`, `generate`, and `serve` are wired up but not yet implemented:
+The `wubbie` CLI exposes five subcommands. `download` and `tokenizer` are
+implemented (see above); `train`, `generate`, and `serve` are wired up but not
+yet implemented:
 
 ```bash
+cargo run -p wubbie -- download --hf-repo owner/repo   # fetch corpus → HF cache
 cargo run -p wubbie -- tokenizer --input corpus/   # train the BPE tokenizer
 cargo run -p wubbie -- train
 cargo run -p wubbie -- generate "Once upon a time"   # or `-` to read stdin

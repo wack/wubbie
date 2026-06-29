@@ -20,8 +20,9 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow, ensure};
 use flate2::read::MultiGzDecoder;
-use hf_hub::api::sync::ApiBuilder;
-use hf_hub::{Repo, RepoType};
+use hf_hub::api::Progress as HfProgress;
+use hf_hub::api::sync::{ApiBuilder, ApiRepo};
+use hf_hub::{Cache, Repo, RepoType};
 
 /// The default JSON field holding a record's document text.
 pub const DEFAULT_TEXT_FIELD: &str = "text";
@@ -36,6 +37,9 @@ pub struct HfSource {
     /// Explicit files to fetch. Empty means "discover every corpus file in the
     /// repo at this revision".
     pub files: Vec<String>,
+    /// Override for the Hugging Face cache directory (where shards are stored).
+    /// `None` uses the hf-hub default (`HF_HOME` / `~/.cache/huggingface`).
+    pub cache_dir: Option<PathBuf>,
 }
 
 /// Where the corpus comes from.
@@ -217,57 +221,172 @@ fn collect_local_files(input: &Path) -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-/// Download the requested files of a pinned HF dataset into the local cache and
-/// return their paths.
-fn fetch_hf_files(source: &HfSource) -> Result<Vec<PathBuf>> {
-    let api = ApiBuilder::new()
-        .with_progress(true)
-        .build()
-        .map_err(|err| anyhow!("failed to initialize Hugging Face client: {err}"))?;
-    let repo = api.repo(Repo::with_revision(
+/// The hf-hub [`Cache`] for a source, honoring its `cache_dir` override.
+fn hf_cache(source: &HfSource) -> Cache {
+    match &source.cache_dir {
+        Some(dir) => Cache::new(dir.clone()),
+        None => Cache::from_env(),
+    }
+}
+
+/// The pinned dataset [`Repo`] for a source.
+fn hf_repo(source: &HfSource) -> Repo {
+    Repo::with_revision(
         source.repo.clone(),
         RepoType::Dataset,
         source.revision.clone(),
-    ));
+    )
+}
 
-    let filenames = if source.files.is_empty() {
-        let info = repo.info().map_err(|err| {
-            anyhow!(
-                "failed to list files in dataset {}@{}: {err}",
-                source.repo,
-                source.revision,
-            )
-        })?;
-        let mut names: Vec<String> = info
-            .siblings
-            .into_iter()
-            .map(|sibling| sibling.rfilename)
-            .filter(|name| is_corpus_file(name))
-            .collect();
-        names.sort();
-        ensure!(
-            !names.is_empty(),
-            "no corpus files (.jsonl/.jsonl.gz/.txt) found in dataset {}@{}",
+/// Resolve the corpus filenames for a source: the explicit `--hf-file` list, or
+/// every corpus file discovered in the repo at the pinned revision (one network
+/// listing call).
+fn resolve_filenames(api_repo: &ApiRepo, source: &HfSource) -> Result<Vec<String>> {
+    if !source.files.is_empty() {
+        return Ok(source.files.clone());
+    }
+    let info = api_repo.info().map_err(|err| {
+        anyhow!(
+            "failed to list files in dataset {}@{}: {err}",
             source.repo,
             source.revision,
-        );
-        names
-    } else {
-        source.files.clone()
-    };
+        )
+    })?;
+    let mut names: Vec<String> = info
+        .siblings
+        .into_iter()
+        .map(|sibling| sibling.rfilename)
+        .filter(|name| is_corpus_file(name))
+        .collect();
+    names.sort();
+    ensure!(
+        !names.is_empty(),
+        "no corpus files (.jsonl/.jsonl.gz/.txt) found in dataset {}@{}",
+        source.repo,
+        source.revision,
+    );
+    Ok(names)
+}
 
+/// Resolve a pinned HF dataset to local shard paths, reading **only from the
+/// local cache** — training never triggers a bulk download. Missing shards are a
+/// hard error pointing at `wubbie download`, so pulling 521 GB is always an
+/// explicit, separate step (see [`download_hf`]).
+fn fetch_hf_files(source: &HfSource) -> Result<Vec<PathBuf>> {
+    let cache = hf_cache(source);
+    let api = ApiBuilder::from_cache(cache.clone())
+        .with_progress(false)
+        .build()
+        .map_err(|err| anyhow!("failed to initialize Hugging Face client: {err}"))?;
+    let api_repo = api.repo(hf_repo(source));
+    let cache_repo = cache.repo(hf_repo(source));
+
+    let filenames = resolve_filenames(&api_repo, source)?;
     filenames
         .iter()
         .map(|name| {
-            repo.get(name).map_err(|err| {
+            cache_repo.get(name).ok_or_else(|| {
                 anyhow!(
-                    "failed to fetch {name} from dataset {}@{}: {err}",
-                    source.repo,
-                    source.revision,
+                    "{name} from dataset {repo}@{rev} is not in the local cache — \
+                     run `wubbie download --hf-repo {repo} --hf-revision {rev}` first",
+                    name = name,
+                    repo = source.repo,
+                    rev = source.revision,
                 )
             })
         })
         .collect()
+}
+
+/// Reports progress of a corpus [`download_hf`], one method per event. The CLI
+/// implements this to render a progress display; keeping it a trait keeps
+/// `corpus` free of presentation concerns.
+pub trait DownloadReporter {
+    /// A file's download is starting; `size` is its total size in bytes.
+    fn file_started(&mut self, index: usize, total: usize, name: &str, size: u64);
+    /// `delta` more bytes of the current file have been written to disk.
+    fn bytes_advanced(&mut self, delta: u64);
+    /// The current file finished downloading.
+    fn file_finished(&mut self);
+    /// A file was already in the cache and is being skipped (resume support).
+    fn file_cached(&mut self, index: usize, total: usize, name: &str);
+}
+
+/// Bridges hf-hub's per-file [`HfProgress`] callbacks to our [`DownloadReporter`],
+/// carrying the file's position in the overall set.
+struct ProgressAdapter<'a, R: DownloadReporter> {
+    reporter: &'a mut R,
+    index: usize,
+    total: usize,
+}
+
+impl<R: DownloadReporter> HfProgress for ProgressAdapter<'_, R> {
+    fn init(&mut self, size: usize, filename: &str) {
+        self.reporter
+            .file_started(self.index, self.total, filename, size as u64);
+    }
+
+    fn update(&mut self, size: usize) {
+        self.reporter.bytes_advanced(size as u64);
+    }
+
+    fn finish(&mut self) {
+        self.reporter.file_finished();
+    }
+}
+
+/// Download a pinned HF dataset's corpus files into the local cache, reporting
+/// progress and **skipping any file already cached** so an interrupted run
+/// resumes where it left off. Returns the local paths of all shards.
+///
+/// This is the explicit bulk-fetch step (`wubbie download`); training reads the
+/// resulting cache via [`fetch_hf_files`] without downloading.
+pub fn download_hf(
+    source: &HfSource,
+    reporter: &mut impl DownloadReporter,
+) -> Result<Vec<PathBuf>> {
+    let cache = hf_cache(source);
+    let api = ApiBuilder::from_cache(cache.clone())
+        // We render our own cross-file progress, so suppress hf-hub's per-file bar.
+        .with_progress(false)
+        .build()
+        .map_err(|err| anyhow!("failed to initialize Hugging Face client: {err}"))?;
+    let api_repo = api.repo(hf_repo(source));
+    let cache_repo = cache.repo(hf_repo(source));
+
+    let filenames = resolve_filenames(&api_repo, source)?;
+    let total = filenames.len();
+    let mut paths = Vec::with_capacity(total);
+    for (index, name) in filenames.iter().enumerate() {
+        if let Some(path) = cache_repo.get(name) {
+            reporter.file_cached(index, total, name);
+            paths.push(path);
+            continue;
+        }
+        // `&mut *reporter` reborrows, so the adapter's borrow ends when the
+        // download returns and the reporter is free for the next iteration.
+        let adapter = ProgressAdapter {
+            reporter: &mut *reporter,
+            index,
+            total,
+        };
+        let path = api_repo
+            .download_with_progress(name, adapter)
+            .map_err(|err| {
+                anyhow!(
+                    "failed to download {name} from dataset {}@{}: {err}",
+                    source.repo,
+                    source.revision,
+                )
+            })?;
+        paths.push(path);
+    }
+    Ok(paths)
+}
+
+/// The local cache directory shards land in, for reporting after a download.
+pub fn cache_location(source: &HfSource) -> PathBuf {
+    hf_cache(source).path().clone()
 }
 
 #[cfg(test)]
@@ -391,5 +510,24 @@ mod tests {
         let err = collect_local_files(&dir).expect_err("empty dir is rejected");
         assert!(err.to_string().contains("no corpus files"));
         fs::remove_dir_all(&dir).expect("cleanup");
+    }
+
+    #[test]
+    fn explicit_hf_files_skip_the_network_listing() {
+        // With explicit `--hf-file`s, resolution must not hit the network: it
+        // returns the given names verbatim. (Building the client is offline.)
+        let cache = Cache::new(std::env::temp_dir().join("wubbie-hf-noop"));
+        let api = ApiBuilder::from_cache(cache)
+            .with_progress(false)
+            .build()
+            .expect("build offline api");
+        let source = HfSource {
+            repo: "owner/repo".to_owned(),
+            revision: "main".to_owned(),
+            files: vec!["a.jsonl".to_owned(), "b.jsonl.gz".to_owned()],
+            cache_dir: None,
+        };
+        let names = resolve_filenames(&api.repo(hf_repo(&source)), &source).expect("resolves");
+        assert_eq!(names, ["a.jsonl", "b.jsonl.gz"]);
     }
 }

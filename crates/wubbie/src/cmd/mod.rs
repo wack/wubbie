@@ -5,11 +5,13 @@
 //! delegates to them. Handlers are wired up but not yet implemented — the
 //! corresponding pipeline tickets fill them in.
 
+pub use download::Download;
 pub use generate::Generate;
 pub use serve::Serve;
 pub use tokenizer::Tokenizer;
 pub use train::Train;
 
+mod download;
 mod generate;
 mod serve;
 mod tokenizer;

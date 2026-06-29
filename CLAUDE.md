@@ -42,7 +42,7 @@ are added as members in the root `Cargo.toml`.
             ├── bin/main.rs # CLI entry point (thin: parse → dispatch)
             ├── config/     # clap CLI layer (cli/command + per-subcommand args)
             │               #   + model/run config (ModelConfig, RunConfig)
-            ├── cmd/        # subcommand handlers (one per subcommand)
+            ├── cmd/        # subcommand handlers (download / tokenizer / train / …)
             ├── backend.rs  # compile-time backend selection (ndarray / cuda)
             ├── corpus.rs   # corpus access: HF (hf-hub) / local; JSONL(.gz) + text
             ├── model.rs    # model definition

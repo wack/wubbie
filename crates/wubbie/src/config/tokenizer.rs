@@ -44,6 +44,12 @@ pub struct TokenizerSubcommand {
     #[arg(long = "hf-file", value_name = "FILE")]
     hf_files: Vec<String>,
 
+    /// Override the Hugging Face cache directory to read shards from. Use the
+    /// same value you passed to `wubbie download`. Defaults to the hf-hub
+    /// location (`HF_HOME` / `~/.cache/huggingface`).
+    #[arg(long, value_name = "DIR")]
+    cache_dir: Option<PathBuf>,
+
     /// JSON field holding each record's document text (JSONL sources only).
     #[arg(long, value_name = "FIELD", default_value = DEFAULT_TEXT_FIELD)]
     text_field: String,
@@ -71,6 +77,7 @@ impl TokenizerSubcommand {
                 repo: repo.clone(),
                 revision: self.hf_revision.clone(),
                 files: self.hf_files.clone(),
+                cache_dir: self.cache_dir.clone(),
             }),
             (Some(input), None) => CorpusSource::Local(input.clone()),
             (None, None) => unreachable!("clap requires one of --input / --hf-repo"),
