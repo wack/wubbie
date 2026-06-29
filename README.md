@@ -25,9 +25,10 @@ serves them.
 │   └── wubbie/             # the pipeline crate (library + `wubbie` CLI)
 │       └── src/
 │           ├── lib.rs
-│           ├── main.rs     # CLI entry point (train / generate / serve)
+│           ├── bin/main.rs # CLI entry point (thin: parse → dispatch)
+│           ├── config/     # CLI (clap) layer + model/run configuration
+│           ├── cmd/        # subcommand handlers (train / generate / serve)
 │           ├── backend.rs  # compile-time backend selection (CPU / CUDA)
-│           ├── config.rs   # model configuration
 │           ├── model.rs    # model definition
 │           ├── tokenizer.rs# tokenizer loading
 │           ├── training.rs # training loop
@@ -83,6 +84,13 @@ cargo run -p wubbie -- train
 cargo run -p wubbie -- generate
 cargo run -p wubbie -- serve
 ```
+
+The CLI follows a fixed layout: a thin entrypoint (`src/bin/main.rs`) parses
+args and dispatches; each subcommand has an argument struct under `src/config/`
+and a handler under `src/cmd/`. New subcommands inherit this structure. Model
+and run configuration (`ModelConfig`, the named `ModelSize`s, `TrainingConfig`,
+and the reproducible `RunConfig` bundle) also live under `src/config/` and are
+`serde`-serializable for reproducible runs.
 
 ## CI
 

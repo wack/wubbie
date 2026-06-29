@@ -27,6 +27,7 @@ tokenizers = { workspace = true }
 safetensors = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
+derive-getters = { workspace = true }
 serde = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -36,7 +37,7 @@ serde_json = { workspace = true }
 
 [[bin]]
 name = "wubbie"
-path = "src/main.rs"
+path = "src/bin/main.rs"
 
 [lib]
 name = "wubbie"

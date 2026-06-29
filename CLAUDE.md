@@ -39,15 +39,23 @@ are added as members in the root `Cargo.toml`.
     └── wubbie/             # pipeline crate: library + `wubbie` binary
         └── src/
             ├── lib.rs      # module roots
-            ├── main.rs     # CLI entry point (clap)
+            ├── bin/main.rs # CLI entry point (thin: parse → dispatch)
+            ├── config/     # clap CLI layer (cli/command + per-subcommand args)
+            │               #   + model/run config (ModelConfig, RunConfig)
+            ├── cmd/        # subcommand handlers (one per subcommand)
             ├── backend.rs  # compile-time backend selection (ndarray / cuda)
-            ├── config.rs   # ModelConfig
             ├── model.rs    # model definition
             ├── tokenizer.rs# tokenizer loading (tokenizers crate)
             ├── training.rs # training loop
             ├── inference.rs# inference entry points
             └── weights.rs  # safetensors (de)serialization
 ```
+
+The CLI follows the house convention (mirroring the `multitool` layout): a thin
+`src/bin/main.rs` parses args and dispatches; `src/config/` holds the clap layer
+(`cli.rs`, `command.rs`, one `<Sub>Subcommand` args struct per subcommand) plus
+the `serde`-serializable model/run config; `src/cmd/` holds one handler per
+subcommand (`new(args)` + `dispatch()`). New subcommands inherit this structure.
 
 ## Dependency Policy
 

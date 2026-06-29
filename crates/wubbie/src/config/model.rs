@@ -1,12 +1,7 @@
-//! Model and run configuration — the single source of truth the model, the
-//! loss, and the training loop all instantiate against.
-//!
-//! The types here are `serde`-serializable so a run can be described entirely by
-//! a config and reproduced from it. The *on-disk* configuration-file layout
-//! (and the CLI that loads it) follows the house convention tracked in
-//! MULTI-1382 and is intentionally not pinned here — these structs are
-//! format-agnostic and round-trip through any `serde` data format.
+//! Model architecture configuration — the dims the model and loss instantiate
+//! against.
 
+use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 use crate::tokenizer::VOCAB_SIZE;
@@ -18,7 +13,7 @@ pub const CONTEXT_LENGTH: usize = 1_024;
 ///
 /// Every field is an integer or a bool so the struct derives [`Eq`] and hashes
 /// cleanly; the training-time floating-point hyperparameters live separately in
-/// [`TrainingConfig`].
+/// [`TrainingConfig`](super::TrainingConfig).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModelConfig {
     /// Number of tokens in the tokenizer vocabulary. Wired to [`VOCAB_SIZE`].
@@ -116,12 +111,8 @@ impl Default for ModelConfig {
     }
 }
 
-/// A named, predefined model size.
-///
-/// Later tickets surface this on the CLI (subject to the layout sign-off in
-/// MULTI-1382); it exists here so the named sizes have a single, serializable
-/// enumeration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// A named, predefined model size, selectable on the CLI (`--size`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ModelSize {
     /// The ~100M-parameter, GPT-2-small-class target.
@@ -138,55 +129,6 @@ impl ModelSize {
             ModelSize::DebugTiny => ModelConfig::debug_tiny(),
         }
     }
-}
-
-/// Optimization hyperparameters for the training loop.
-///
-/// Phase 3 owns the final values; the [`Default`] here is a reasonable
-/// provisional starting point so the substrate is in place and the training
-/// loop has a struct to instantiate against.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TrainingConfig {
-    /// Peak learning rate.
-    pub learning_rate: f64,
-    /// AdamW weight-decay coefficient.
-    pub weight_decay: f64,
-    /// Examples per optimization step.
-    pub batch_size: usize,
-    /// Total number of optimization steps.
-    pub max_steps: usize,
-    /// Linear warmup steps before the learning-rate schedule decays.
-    pub warmup_steps: usize,
-    /// Optional global gradient-norm clipping threshold.
-    pub grad_clip: Option<f64>,
-    /// RNG seed, recorded so a run is reproducible.
-    pub seed: u64,
-}
-
-impl Default for TrainingConfig {
-    fn default() -> Self {
-        Self {
-            learning_rate: 3e-4,
-            weight_decay: 0.1,
-            batch_size: 32,
-            max_steps: 100_000,
-            warmup_steps: 2_000,
-            grad_clip: Some(1.0),
-            seed: 0,
-        }
-    }
-}
-
-/// A complete, reproducible run description: architecture plus optimization.
-///
-/// Serializing a `RunConfig` captures everything needed to reproduce a run; the
-/// training loop and inference paths both instantiate against it.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct RunConfig {
-    /// Model architecture.
-    pub model: ModelConfig,
-    /// Optimization hyperparameters.
-    pub training: TrainingConfig,
 }
 
 #[cfg(test)]
@@ -245,14 +187,6 @@ mod tests {
     fn named_size_round_trips_to_its_config() {
         assert_eq!(ModelSize::Gpt2Small.config(), ModelConfig::gpt2_small());
         assert_eq!(ModelSize::DebugTiny.config(), ModelConfig::debug_tiny());
-    }
-
-    #[test]
-    fn run_config_round_trips_through_json() {
-        let config = RunConfig::default();
-        let json = serde_json::to_string_pretty(&config).expect("serialize");
-        let parsed: RunConfig = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(config, parsed);
     }
 
     #[test]
