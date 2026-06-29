@@ -75,12 +75,15 @@ Training uses `backend::TrainBackend` (an `Autodiff`-wrapped backend); inference
 
 ## CI / Agent Guardrails
 
-- **`.github/workflows/on-push.yml`** runs on every push (workflows are named after their trigger
-  event). The `validate` job runs `cargo fmt --all --check`, `cargo clippy --all-targets --workspace
-  --locked -- -D warnings`, `cargo build --workspace --locked`, and `cargo test --workspace
-  --locked`. A `cuda-build` job compile-checks the `cuda` feature (`cargo build --no-default-features
-  --features cuda`) — `cudarc` uses dynamic loading so it builds with no GPU/toolkit, but running it
-  needs a GPU host. It must stay green.
+- **CI workflows are named after their trigger event.** `.github/workflows/on-push.yml` runs on
+  push (PR branches; excludes `trunk` and the merge queue) and `.github/workflows/on-merge.yml`
+  runs on `merge_group` (the GitHub merge queue, if enabled). Both run the same jobs: `validate`
+  (`cargo fmt --all --check`, `cargo clippy --all-targets --workspace --locked -- -D warnings`,
+  `cargo build --workspace --locked`, `cargo test --workspace --locked`) and `cuda-build`, which
+  compile-checks the `cuda` feature (`cargo build --no-default-features --features cuda`) — `cudarc`
+  uses dynamic loading so it builds with no GPU/toolkit, but running it needs a GPU host. Both
+  workflows expose a single gate job named **`⚡ PR Ready`**; keep that name identical across the two
+  files so one branch-protection check covers both contexts. It must stay green.
 - **`--locked`:** CI builds/tests with `--locked`, so keep `Cargo.lock` committed and in sync.
 - **Clippy is the ratchet:** the workspace lints (`[workspace.lints]`) deny `unsafe_code` and warn
   on `clippy::all`, escalated to a hard failure by `-D warnings`. Fix findings rather than adding

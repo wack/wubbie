@@ -86,7 +86,13 @@ cargo run -p wubbie -- serve
 
 ## CI
 
-`.github/workflows/on-push.yml` runs on every push and gates on:
+Workflows are named after their trigger event:
+
+- `.github/workflows/on-push.yml` runs on push (PR branches).
+- `.github/workflows/on-merge.yml` runs on the GitHub merge queue
+  (`merge_group`), if one is enabled.
+
+Both run the same gate:
 
 1. `cargo fmt --all --check`
 2. `cargo clippy --all-targets --workspace --locked -- -D warnings`
