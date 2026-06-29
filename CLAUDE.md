@@ -71,13 +71,20 @@ table together.
 ## Backends
 
 Burn is backend-generic; the concrete backend is chosen at compile time in `backend.rs` via
-crate features:
+crate features. Each backend pairs with the precision it ships with:
 
-- **`ndarray`** (default) — pure-Rust CPU backend, builds everywhere. This is what CI builds.
-- **`cuda`** — NVIDIA CUDA backend via CubeCL. Requires the CUDA toolkit at build time, so it is
-  intentionally **excluded from the default build and CI**. Code touching the CUDA backend is
+- **`ndarray`** (default) — pure-Rust CPU backend, builds everywhere. **f32.** This is what CI
+  builds.
+- **`cuda`** — NVIDIA CUDA backend via CubeCL, the cloud-training path. **bf16** (the locked
+  cloud recipe — see MULTI-1386). Requires the CUDA toolkit at build time, so it is intentionally
+  **excluded from the default build and CI**. Code touching the CUDA backend is
   `#[cfg(feature = "cuda")]`-gated; it is not compiled by `cargo build`/CI, so verify it builds on
   a CUDA host before relying on it.
+- **`wgpu`** — cross-platform WGPU backend via CubeCL (Metal on macOS, Vulkan on Linux/Windows,
+  DirectX 12 on Windows), the local-development path. **f32** (Metal does not implement bf16
+  arithmetic via WGPU). Not part of the default build or CI; actually running the
+  forward/backward path needs a GPU host. CubeCL's `#[cube]` macros require the crate-root
+  `#![recursion_limit = "256"]` set in `lib.rs`.
 
 Training uses `backend::TrainBackend` (an `Autodiff`-wrapped backend); inference uses
 `backend::Backend` directly.
