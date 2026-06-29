@@ -15,7 +15,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Result, ensure};
 use tokenizers::models::TrainerWrapper;
 use tokenizers::models::bpe::{BPE, BpeTrainer};
 use tokenizers::pre_tokenizers::byte_level::ByteLevel;
@@ -23,13 +23,16 @@ use tokenizers::{AddedToken, Tokenizer};
 
 /// Vocabulary size of the locked tokenizer.
 ///
-/// Locked at 32k — the top of the ~16–32k target band (MULTI-1379). The Phase 2
-/// model config reads its `vocab_size` from this single constant, and the
+/// Locked at 16k — the *bottom* of the ~16–32k target band (MULTI-1379). This
+/// round of pre-training/tokenizing runs on CPU (an iMac, before cloud GPUs),
+/// where a smaller vocabulary keeps the embedding/output matrices and the
+/// softmax cheaper, so the small end is the deliberate choice. The Phase 2 model
+/// config reads its `vocab_size` from this single constant, and the
 /// loss-at-init ≈ `ln(VOCAB_SIZE)` sanity check is taken against it, so this is
 /// the one place the size is defined. The trainer targets this total (special
 /// tokens + the 256-byte alphabet + learned merges); a corpus large enough to
 /// support that many merges lands the trained vocabulary exactly here.
-pub const VOCAB_SIZE: usize = 32_000;
+pub const VOCAB_SIZE: usize = 16_000;
 
 /// Padding token. Listed first in [`SPECIAL_TOKENS`] so the trainer assigns it
 /// id `0`, the conventional pad / ignore index.
@@ -115,18 +118,22 @@ fn build_trainer(vocab_size: usize, min_frequency: u64, show_progress: bool) -> 
         .into()
 }
 
-/// Train a byte-level BPE tokenizer on a set of corpus files.
+/// Train a byte-level BPE tokenizer on a stream of document texts.
 ///
-/// Each file is read line by line. `vocab_size` is the target *total*
-/// vocabulary (special tokens + byte alphabet + learned merges); `min_frequency`
-/// is the floor on pair frequency for a merge to be kept. Returns the trained,
-/// ready-to-use [`Tokenizer`].
-pub fn train_from_files(
-    files: &[impl AsRef<Path>],
+/// `sequences` yields the already-extracted document text — the corpus reader
+/// ([`crate::corpus`]) is responsible for turning JSONL/`.gz`/text shards into
+/// this stream, so this function is format-agnostic. `vocab_size` is the target
+/// *total* vocabulary (special tokens + byte alphabet + learned merges);
+/// `min_frequency` is the floor on pair frequency for a merge to be kept.
+/// Returns the trained, ready-to-use [`Tokenizer`].
+pub fn train_from_sequences<I>(
+    sequences: I,
     vocab_size: usize,
     min_frequency: u64,
-) -> Result<Tokenizer> {
-    ensure!(!files.is_empty(), "no corpus files provided to train on");
+) -> Result<Tokenizer>
+where
+    I: Iterator<Item = String> + Send,
+{
     ensure!(
         vocab_size > SPECIAL_TOKENS.len() + 256,
         "vocab_size {vocab_size} is too small: it must exceed the {} special tokens plus the \
@@ -134,20 +141,10 @@ pub fn train_from_files(
         SPECIAL_TOKENS.len(),
     );
 
-    let paths = files
-        .iter()
-        .map(|path| {
-            let path = path.as_ref();
-            path.to_str()
-                .map(str::to_owned)
-                .with_context(|| format!("corpus path is not valid UTF-8: {}", path.display()))
-        })
-        .collect::<Result<Vec<_>>>()?;
-
     let mut tokenizer = build_byte_level_bpe();
     let mut trainer = build_trainer(vocab_size, min_frequency, true);
     tokenizer
-        .train_from_files(&mut trainer, paths)
+        .train(&mut trainer, sequences)
         .map_err(|err| anyhow::anyhow!("failed to train tokenizer: {err}"))?;
     Ok(tokenizer)
 }
@@ -355,16 +352,18 @@ mod tests {
 
     #[test]
     fn vocab_size_below_the_floor_is_rejected() {
-        let err = train_from_files(&["unused.txt"], 100, 2)
+        let err = train_from_sequences(std::iter::empty::<String>(), 100, 2)
             .expect_err("a vocab below the byte+special floor is rejected");
         assert!(err.to_string().contains("too small"));
     }
 
     #[test]
-    fn empty_file_list_is_rejected() {
-        let no_files: &[&str] = &[];
-        let err = train_from_files(no_files, VOCAB_SIZE, 2)
-            .expect_err("training needs at least one file");
-        assert!(err.to_string().contains("no corpus files"));
+    fn train_from_sequences_matches_the_direct_trainer() {
+        // The public entry point should produce the same locked vocabulary as
+        // the in-memory helper the other tests use.
+        let tokenizer =
+            train_from_sequences(sample_corpus().into_iter(), 320, 2).expect("training succeeds");
+        assert_eq!(tokenizer.get_vocab_size(true), 320);
+        verify_special_tokens_atomic(&tokenizer).expect("special tokens are atomic");
     }
 }

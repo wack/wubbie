@@ -30,6 +30,16 @@ safetensors = "=0.8.0"
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive", "env"] }
 derive-getters = "0.5"
+# Pure-Rust gzip (miniz_oxide backend, no C) for reading `.jsonl.gz` corpus
+# shards.
+flate2 = "1.0"
+# Pure-Rust Hugging Face Hub client. The filtered CommonPile slice lives on HF
+# (MULTI-1378) and is pulled on demand at tokenize/train time; `ureq` is the
+# blocking client and `rustls-tls` keeps the TLS stack pure-Rust (no OpenSSL).
+hf-hub = { version = "0.5", default-features = false, features = [
+  "ureq",
+  "rustls-tls",
+] }
 # Layered configuration: merge file + env + CLI into a fully-specified struct.
 figment = { version = "0.10", default-features = false, features = [
   "toml",

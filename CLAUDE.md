@@ -44,6 +44,7 @@ are added as members in the root `Cargo.toml`.
             │               #   + model/run config (ModelConfig, RunConfig)
             ├── cmd/        # subcommand handlers (one per subcommand)
             ├── backend.rs  # compile-time backend selection (ndarray / cuda)
+            ├── corpus.rs   # corpus access: HF (hf-hub) / local; JSONL(.gz) + text
             ├── model.rs    # model definition
             ├── tokenizer.rs# byte-level BPE tokenizer: train + load (tokenizers crate)
             ├── training.rs # training loop

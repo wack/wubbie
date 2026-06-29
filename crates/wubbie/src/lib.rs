@@ -14,6 +14,7 @@ pub use config::Cli;
 pub mod backend;
 pub mod cmd;
 pub mod config;
+pub mod corpus;
 pub mod inference;
 pub mod model;
 pub mod tokenizer;

@@ -18,7 +18,9 @@ The tokenizer is a GPT-2-style **byte-level BPE** trained with the
 [`tokenizers`] crate. Two things are **locked** at training time and feed every
 downstream phase, so they live as constants in `src/tokenizer.rs`:
 
-- **Vocabulary size:** `32_000` (`tokenizer::VOCAB_SIZE`). The model config
+- **Vocabulary size:** `16_000` (`tokenizer::VOCAB_SIZE`) — the small end of the
+  ~16–32k band, chosen because this round of pre-training runs on CPU (an iMac),
+  where a smaller vocab keeps the embedding/softmax cheap. The model config
   sizes its embedding table to this, and the loss-at-init ≈ `ln(vocab)` check is
   taken against it.
 - **Special-token inventory** (`tokenizer::SPECIAL_TOKENS`), reserved as atomic
@@ -35,11 +37,25 @@ downstream phase, so they live as constants in `src/tokenizer.rs`:
   The chat-template *rendering format* is finalized later (Phase 3 SFT, applied
   identically at Phase 6 serving); the tokens themselves exist now.
 
-Train it on a corpus slice with `wubbie tokenizer`:
+### Corpus source
+
+The filtered CommonPile slice **stays on Hugging Face** (MULTI-1378) and is
+pulled on demand via the pure-Rust [`hf-hub`] client, pinned by repo + revision
+for reproducibility — nothing is mirrored into object storage. Shards are JSON
+Lines (`.jsonl` / `.jsonl.gz`, document text under a configurable field) or
+plain text (`.txt` / `.txt.gz`); `.gz` is decompressed transparently. The corpus
+reader lives in `src/corpus.rs` and is shared with the later tokenize step.
+
+Train on the pinned HF slice, or on a local path for tiny/offline runs:
 
 ```bash
-# `--input` is a text file or a directory of `.txt` files
-cargo run -p wubbie -- tokenizer --input corpus/ --output tokenizer.json
+# Pull the corpus from a pinned Hugging Face dataset (text under `text`)
+cargo run -p wubbie -- tokenizer \
+  --hf-repo owner/filtered-commonpile --hf-revision <sha> \
+  --output tokenizer.json
+
+# ...or train on local shards: a file, or a directory of .jsonl/.jsonl.gz/.txt
+cargo run -p wubbie -- tokenizer --input corpus/ --text-field text
 ```
 
 After training it runs the acceptance checks against a sample of the corpus:
@@ -47,6 +63,7 @@ exact `decode(encode(text)) == text` round-trip, each special token encodes
 atomically, and the ~3.5–4 chars/token compression ratio (a miss warns).
 
 [`tokenizers`]: https://github.com/huggingface/tokenizers
+[`hf-hub`]: https://crates.io/crates/hf-hub
 
 Trained weights do **not** live in this repository — they are published to a
 separate HuggingFace model repo. This repo holds the code that produces and
@@ -65,6 +82,7 @@ serves them.
 │           ├── config/     # CLI (clap) layer + model/run configuration
 │           ├── cmd/        # subcommand handlers (tokenizer / train / generate / serve)
 │           ├── backend.rs  # compile-time backend selection (CPU / CUDA)
+│           ├── corpus.rs   # corpus access (HF via hf-hub / local; JSONL+gz)
 │           ├── model.rs    # model definition
 │           ├── tokenizer.rs# byte-level BPE tokenizer (train + load)
 │           ├── training.rs # training loop
