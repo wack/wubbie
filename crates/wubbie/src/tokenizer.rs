@@ -21,17 +21,21 @@ use tokenizers::models::bpe::{BPE, BpeTrainer};
 use tokenizers::pre_tokenizers::byte_level::ByteLevel;
 use tokenizers::{AddedToken, Tokenizer};
 
-/// Vocabulary size of the locked tokenizer.
+/// Default/target vocabulary size, before a tokenizer is trained.
 ///
 /// Locked at 16k — the *bottom* of the ~16–32k target band (MULTI-1379). This
 /// round of pre-training/tokenizing runs on CPU (an iMac, before cloud GPUs),
 /// where a smaller vocabulary keeps the embedding/output matrices and the
-/// softmax cheaper, so the small end is the deliberate choice. The Phase 2 model
-/// config reads its `vocab_size` from this single constant, and the
-/// loss-at-init ≈ `ln(VOCAB_SIZE)` sanity check is taken against it, so this is
-/// the one place the size is defined. The trainer targets this total (special
-/// tokens + the 256-byte alphabet + learned merges); a corpus large enough to
-/// support that many merges lands the trained vocabulary exactly here.
+/// softmax cheaper, so the small end is the deliberate choice. The trainer
+/// targets this total (special tokens + the 256-byte alphabet + learned merges);
+/// a corpus large enough to support that many merges lands the trained
+/// vocabulary exactly here.
+///
+/// **This is a default, not the authority.** Once a tokenizer is trained, the
+/// model's `vocab_size` is the *actual* size of that `tokenizer.json` — read via
+/// [`vocab_size_from_file`] — because the embedding table must match the
+/// tokenizer exactly. This constant only seeds the target (and the
+/// loss-at-init ≈ `ln(vocab)` expectation) until a trained tokenizer exists.
 pub const VOCAB_SIZE: usize = 16_000;
 
 /// Padding token. Listed first in [`SPECIAL_TOKENS`] so the trainer assigns it
@@ -161,6 +165,21 @@ pub fn save(tokenizer: &Tokenizer, path: impl AsRef<Path>) -> Result<()> {
 pub fn load(path: impl AsRef<Path>) -> Result<Tokenizer> {
     Tokenizer::from_file(path.as_ref())
         .map_err(|err| anyhow::anyhow!("failed to load tokenizer: {err}"))
+}
+
+/// Read the actual vocabulary size (including special tokens) from a trained
+/// `tokenizer.json`.
+///
+/// **This is the source of truth for the model's `vocab_size`.** The embedding
+/// table and LM head must match the tokenizer that produced the training data
+/// *exactly*, so once a tokenizer is trained the model should size itself from
+/// this rather than from the [`VOCAB_SIZE`] default constant (which only seeds
+/// the target before a tokenizer exists). The `train` subcommand already wires
+/// this in via `--tokenizer` (see
+/// [`TrainSubcommand::resolve_model_config`](crate::config::TrainSubcommand));
+/// the model-assembly ticket (MULTI-1383) consumes the resulting `vocab_size`.
+pub fn vocab_size_from_file(path: impl AsRef<Path>) -> Result<usize> {
+    Ok(load(path)?.get_vocab_size(true))
 }
 
 /// The acceptance-criteria measurements for a trained tokenizer (MULTI-1379).
@@ -365,5 +384,16 @@ mod tests {
             train_from_sequences(sample_corpus().into_iter(), 320, 2).expect("training succeeds");
         assert_eq!(tokenizer.get_vocab_size(true), 320);
         verify_special_tokens_atomic(&tokenizer).expect("special tokens are atomic");
+    }
+
+    #[test]
+    fn vocab_size_is_read_back_from_a_saved_tokenizer() {
+        // The model derives its vocab from the trained file, so a saved
+        // tokenizer must report the exact size it was trained to.
+        let tokenizer = train_tiny(320);
+        let path = std::env::temp_dir().join(format!("wubbie-vocab-{}.json", std::process::id()));
+        save(&tokenizer, &path).expect("save tokenizer");
+        assert_eq!(vocab_size_from_file(&path).expect("read vocab"), 320);
+        std::fs::remove_file(&path).expect("cleanup");
     }
 }

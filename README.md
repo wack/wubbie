@@ -20,9 +20,12 @@ downstream phase, so they live as constants in `src/tokenizer.rs`:
 
 - **Vocabulary size:** `16_000` (`tokenizer::VOCAB_SIZE`) — the small end of the
   ~16–32k band, chosen because this round of pre-training runs on CPU (an iMac),
-  where a smaller vocab keeps the embedding/softmax cheap. The model config
-  sizes its embedding table to this, and the loss-at-init ≈ `ln(vocab)` check is
-  taken against it.
+  where a smaller vocab keeps the embedding/softmax cheap. This constant is the
+  *default/target*; once a tokenizer is trained, the **trained `tokenizer.json`
+  is the source of truth** — the model's `vocab_size` is read from it (via
+  `tokenizer::vocab_size_from_file`, wired through `wubbie train --tokenizer`),
+  because the embedding table and LM head must match the tokenizer exactly. The
+  loss-at-init ≈ `ln(vocab)` check uses that resolved size.
 - **Special-token inventory** (`tokenizer::SPECIAL_TOKENS`), reserved as atomic
   tokens at fixed low ids — **fixed here and not extendable later**:
 
