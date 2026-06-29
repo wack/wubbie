@@ -29,6 +29,10 @@ pub struct TrainSubcommand {
     /// from it — the tokenizer is the source of truth for vocabulary size, so it
     /// overrides every other layer (the embedding table must match the tokenizer
     /// exactly).
+    // TODO(MULTI-1383): make this required once the training loop lands. A model
+    // whose `vocab_size` doesn't match its tokenizer is always a bug; it is only
+    // `Option` now so the stubbed `train` command and the config tests can run
+    // without a tokenizer artifact.
     #[arg(long, value_name = "FILE")]
     tokenizer: Option<PathBuf>,
 
