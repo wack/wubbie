@@ -16,7 +16,15 @@ pub const CONTEXT_LENGTH: usize = 1_024;
 /// [`TrainingConfig`](super::TrainingConfig).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModelConfig {
-    /// Number of tokens in the tokenizer vocabulary. Wired to [`VOCAB_SIZE`].
+    /// Number of tokens in the tokenizer vocabulary.
+    ///
+    /// Seeded from the [`VOCAB_SIZE`] default, but the **trained tokenizer is the
+    /// authority**: when `wubbie train --tokenizer <file>` is given, this is
+    /// overridden with the tokenizer's actual size (see
+    /// [`TrainSubcommand::resolve_model_config`](super::TrainSubcommand) and
+    /// [`tokenizer::vocab_size_from_file`](crate::tokenizer::vocab_size_from_file)).
+    /// The embedding table and LM head must match the tokenizer exactly, so the
+    /// model is sized from this resolved value, never from the constant directly.
     pub vocab_size: usize,
     /// Maximum sequence length the model attends over (`context_len`).
     pub context_length: usize,

@@ -12,6 +12,73 @@ It is built on an all-Rust stack:
 | Tokenizer  | [`tokenizers`](https://github.com/huggingface/tokenizers) |
 | Weights    | [`safetensors`](https://github.com/huggingface/safetensors) |
 
+## Tokenizer
+
+The tokenizer is a GPT-2-style **byte-level BPE** trained with the
+[`tokenizers`] crate. Two things are **locked** at training time and feed every
+downstream phase, so they live as constants in `src/tokenizer.rs`:
+
+- **Vocabulary size:** `16_000` (`tokenizer::VOCAB_SIZE`) — the small end of the
+  ~16–32k band, chosen because this round of pre-training runs on CPU (an iMac),
+  where a smaller vocab keeps the embedding/softmax cheap. This constant is the
+  *default/target*; once a tokenizer is trained, the **trained `tokenizer.json`
+  is the source of truth** — the model's `vocab_size` is read from it (via
+  `tokenizer::vocab_size_from_file`, wired through `wubbie train --tokenizer`),
+  because the embedding table and LM head must match the tokenizer exactly. The
+  loss-at-init ≈ `ln(vocab)` check uses that resolved size.
+- **Special-token inventory** (`tokenizer::SPECIAL_TOKENS`), reserved as atomic
+  tokens at fixed low ids — **fixed here and not extendable later**:
+
+  | id | token          | role                       |
+  | -- | -------------- | -------------------------- |
+  | 0  | `<|pad|>`      | padding / ignore index     |
+  | 1  | `<|bos|>`      | beginning of sequence      |
+  | 2  | `<|eos|>`      | end of sequence            |
+  | 3  | `<|im_start|>` | chat-template turn start   |
+  | 4  | `<|im_end|>`   | chat-template turn end     |
+
+  The chat-template *rendering format* is finalized later (Phase 3 SFT, applied
+  identically at Phase 6 serving); the tokens themselves exist now.
+
+### Corpus source
+
+The filtered CommonPile slice **stays on Hugging Face** (MULTI-1378), pinned by
+repo + revision for reproducibility — nothing is mirrored into object storage.
+Shards are JSON Lines (`.jsonl` / `.jsonl.gz`, document text under a configurable
+field) or plain text (`.txt` / `.txt.gz`); `.gz` is decompressed transparently.
+The corpus reader lives in `src/corpus.rs` and is shared with the later tokenize
+step.
+
+Downloading is a **separate, explicit step** (`wubbie download`), because the
+slice is large (hundreds of GB). It pulls shards into the local Hugging Face
+cache via the pure-Rust [`hf-hub`] client, reports progress, and **skips
+already-cached files** so an interrupted run resumes. `wubbie tokenizer` then
+trains from that cache and never downloads — if a shard is missing it errors and
+tells you to run `download` first.
+
+```bash
+# 1. Download the pinned slice into the HF cache (resumable, shows progress).
+#    Point --cache-dir at a big volume for large corpora.
+cargo run -p wubbie -- download \
+  --hf-repo owner/filtered-commonpile --hf-revision <sha> \
+  --cache-dir /mnt/big/hf
+
+# 2. Train the tokenizer from the cache (no download)...
+cargo run -p wubbie -- tokenizer \
+  --hf-repo owner/filtered-commonpile --hf-revision <sha> \
+  --cache-dir /mnt/big/hf --output tokenizer.json
+
+# ...or train on local shards: a file, or a directory of .jsonl/.jsonl.gz/.txt
+cargo run -p wubbie -- tokenizer --input corpus/ --text-field text
+```
+
+After training it runs the acceptance checks against a sample of the corpus:
+exact `decode(encode(text)) == text` round-trip, each special token encodes
+atomically, and the ~3.5–4 chars/token compression ratio (a miss warns).
+
+[`tokenizers`]: https://github.com/huggingface/tokenizers
+[`hf-hub`]: https://crates.io/crates/hf-hub
+
 Trained weights do **not** live in this repository — they are published to a
 separate HuggingFace model repo. This repo holds the code that produces and
 serves them.
@@ -27,10 +94,11 @@ serves them.
 │           ├── lib.rs
 │           ├── bin/main.rs # CLI entry point (thin: parse → dispatch)
 │           ├── config/     # CLI (clap) layer + model/run configuration
-│           ├── cmd/        # subcommand handlers (train / generate / serve)
+│           ├── cmd/        # subcommand handlers (download / tokenizer / train / generate / serve)
 │           ├── backend.rs  # compile-time backend selection (CPU / CUDA)
+│           ├── corpus.rs   # corpus access (HF via hf-hub / local; JSONL+gz)
 │           ├── model.rs    # model definition
-│           ├── tokenizer.rs# tokenizer loading
+│           ├── tokenizer.rs# byte-level BPE tokenizer (train + load)
 │           ├── training.rs # training loop
 │           ├── inference.rs# inference entry points
 │           └── weights.rs  # safetensors (de)serialization
@@ -76,10 +144,13 @@ If you have [`cargo-make`](https://github.com/sagiegurari/cargo-make)
 installed, `cargo make ci` runs the full CI gate (format check → clippy →
 build → test) locally.
 
-The `wubbie` CLI scaffolds three subcommands; they are wired up but not yet
-implemented:
+The `wubbie` CLI exposes five subcommands. `download` and `tokenizer` are
+implemented (see above); `train`, `generate`, and `serve` are wired up but not
+yet implemented:
 
 ```bash
+cargo run -p wubbie -- download --hf-repo owner/repo   # fetch corpus → HF cache
+cargo run -p wubbie -- tokenizer --input corpus/   # train the BPE tokenizer
 cargo run -p wubbie -- train
 cargo run -p wubbie -- generate "Once upon a time"   # or `-` to read stdin
 cargo run -p wubbie -- serve

@@ -42,10 +42,11 @@ are added as members in the root `Cargo.toml`.
             ├── bin/main.rs # CLI entry point (thin: parse → dispatch)
             ├── config/     # clap CLI layer (cli/command + per-subcommand args)
             │               #   + model/run config (ModelConfig, RunConfig)
-            ├── cmd/        # subcommand handlers (one per subcommand)
+            ├── cmd/        # subcommand handlers (download / tokenizer / train / …)
             ├── backend.rs  # compile-time backend selection (ndarray / cuda)
+            ├── corpus.rs   # corpus access: HF (hf-hub) / local; JSONL(.gz) + text
             ├── model.rs    # model definition
-            ├── tokenizer.rs# tokenizer loading (tokenizers crate)
+            ├── tokenizer.rs# byte-level BPE tokenizer: train + load (tokenizers crate)
             ├── training.rs # training loop
             ├── inference.rs# inference entry points
             └── weights.rs  # safetensors (de)serialization
