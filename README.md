@@ -1,141 +1,105 @@
-# __SERVICE_NAME__
+# wubbie
 
-A Wack microservice built from [`rust-service-template`](https://github.com/wack/rust-service-template).
+> A fully-open SLM, from corpus to inference.
 
-## Overview
+`wubbie` is the all-Rust pipeline repository for a small language model: the
+model definition, the training loop, and the inference server all live here.
+It is built on an all-Rust stack:
 
-`__SERVICE_NAME__` is a Rust web service using the [Salvo](https://salvo.rs) framework,
-[SeaORM](https://www.sea-orm.org) for PostgreSQL persistence, and OpenTelemetry for
-observability. It follows a hexagonal (ports-and-adapters) architecture so that business
-logic stays free of I/O concerns and integration tests can run against in-memory mocks.
+| Concern    | Crate                                                  |
+| ---------- | ------------------------------------------------------ |
+| Framework  | [`burn`](https://burn.dev/docs/burn/) (CUDA via CubeCL)|
+| Tokenizer  | [`tokenizers`](https://github.com/huggingface/tokenizers) |
+| Weights    | [`safetensors`](https://github.com/huggingface/safetensors) |
 
-The crate ships:
+Trained weights do **not** live in this repository — they are published to a
+separate HuggingFace model repo. This repo holds the code that produces and
+serves them.
 
-- An HTTP server exposing the service's REST API plus interactive OpenAPI docs at `/scalar`.
-- A code-generated, strongly-typed HTTP client (`__SERVICE_NAME__-client`) derived from
-  the service's own OpenAPI specification.
-- Database migrations managed with SeaORM.
-
-## Architecture
-
-The codebase is organized into hexagonal layers. Requests flow inward through thin
-adapters; the domain core has no framework or I/O dependencies.
-
-| Layer | Directory | Responsibility |
-|-------|-----------|----------------|
-| Controllers | `src/controllers/` | Thin Salvo HTTP handlers: parse requests, call services, render responses. |
-| Services | `src/services/` | Business logic and use cases; coordinate repositories. |
-| Repositories | `src/repos/` | Data-access traits (ports) and their SeaORM implementations. |
-| Domain | `src/domain/` | Business entities and domain errors. No framework or I/O dependencies. |
-| Views | `src/views/` | Serializable HTTP request/response types. |
-| Models | `src/models/` | SeaORM entity definitions. |
-| Middleware | `src/middleware/` | Salvo middleware (e.g. the JSON error catcher). |
-
-Supporting crates:
-
-- `crates/migrations/` — SeaORM migration definitions.
-- `crates/client/` — the generated OpenAPI client (built and validated in CI).
-
-All external I/O sits behind async traits, so production code uses real implementations
-while tests inject mocks (see `CLAUDE.md` for the full Sans-I/O design notes).
-
-## Usage
-
-The binary is `__service_name__` and exposes three subcommands:
-
-```bash
-# Run the web server
-cargo run -- server
-
-# Print the CLI version and exit
-cargo run -- version
-
-# Export the OpenAPI specification to stdout
-cargo run -- export-openapi > openapi.json
-```
-
-Once the server is running, interactive API documentation is available at
-`http://127.0.0.1:8080/scalar` (or `https://…` when TLS is configured).
-
-## Configuration
-
-Most flags have an environment-variable equivalent (clap `env`). Common `server` options:
-
-| Flag | Env var | Default | Description |
-|------|---------|---------|-------------|
-| `--host` | `HOST` | `127.0.0.1` | Bind address. |
-| `--port` | `PORT` | `8080` | Bind port. |
-| `--pg-host` | `POSTGRES_HOST` | `localhost` | PostgreSQL host. |
-| `--postgres-port` | `POSTGRES_PORT` | `5432` | PostgreSQL port. |
-| `--database` | `POSTGRES_DATABASE` | `postgres` | Database name. |
-| `--username` | `POSTGRES_USER` | _(empty)_ | Database user. |
-| `--password` | `POSTGRES_PASSWORD` | _(empty)_ | Database password. |
-| `--tls-cert` | `TLS_CERT` | _(none)_ | Path to TLS certificate (requires `--tls-key`). |
-| `--tls-key` | `TLS_KEY` | _(none)_ | Path to TLS key (requires `--tls-cert`). |
-| `--log-level` | `LOG_LEVEL` | `info` | Tracing level filter. |
-| `--log-format` | `LOG_FORMAT` | `text` | `text` or `json` log output. |
-| `--deployment-environment` | `OTEL_DEPLOYMENT_ENVIRONMENT` | `local` | OTel resource environment (`development`, `production`, `stable`, `local`). |
-| `--otel-exporter-api-key` | `OTEL_EXPORTER_API_KEY` | _(none)_ | OTLP collector API key (`X-API-KEY`). |
-| `--service-version` | `SERVICE_VERSION` | crate version | Service version reported to OTel. |
-
-CORS options are also exposed via `--cors-*` flags. Run `cargo run -- server --help` for
-the complete, authoritative list.
-
-## Development
-
-Prerequisites: the toolchain is pinned via `rust-toolchain.toml` (Rust 1.96.0); `rustup`
-installs it automatically. Most workflows go through [`cargo-make`](https://github.com/sagiegurari/cargo-make).
-
-```bash
-# Start a local PostgreSQL instance
-cargo make pg
-
-# Apply database migrations
-cargo make migrate
-
-# Build the server and write the OpenAPI spec to openapi.json.
-# (The __SERVICE_NAME__-client crate is regenerated from openapi.json on the
-# next `cargo build` by its build script.)
-cargo make generate-openapi
-
-# Watch tests and rerun on change (runs `bacon nextest`)
-cargo make bacon
-
-# Or run bare `bacon` for the default fmt-check -> check -> clippy watch chain
-bacon
-
-# Strict clippy — the canonical lint command shared by the bacon clippy job and CI.
-# (`clippy-strict` is a cargo alias defined in .cargo/config.toml.)
-cargo clippy-strict
-
-# Run the test suite
-cargo make test
-
-# Check formatting
-cargo make check-format
-```
-
-## Project Structure
+## Layout
 
 ```
 .
-├── src/
-│   ├── bin/main.rs        # Binary entry point
-│   ├── lib.rs             # Library root (shared by binary and tests)
-│   ├── cli/               # clap subcommands (server, version, export-openapi)
-│   ├── controllers/       # HTTP handlers (thin adapters)
-│   ├── services/          # Business logic layer
-│   ├── repos/             # Repository ports + SeaORM implementations
-│   ├── domain/            # Business entities and domain errors
-│   ├── views/             # HTTP request/response types
-│   ├── models/            # SeaORM entities
-│   ├── middleware/        # Salvo middleware
-│   └── utils/             # Database, telemetry, and shared helpers
+├── Cargo.toml              # virtual workspace + pinned dependencies
 ├── crates/
-│   ├── migrations/        # SeaORM migrations
-│   └── client/            # Generated OpenAPI client (__SERVICE_NAME__-client)
-├── helm/chart/            # Helm deployment chart
-├── Makefile.toml          # cargo-make task definitions
-├── rust-toolchain.toml    # Pinned Rust toolchain
-└── Cargo.toml             # Workspace manifest
+│   └── wubbie/             # the pipeline crate (library + `wubbie` CLI)
+│       └── src/
+│           ├── lib.rs
+│           ├── main.rs     # CLI entry point (train / generate / serve)
+│           ├── backend.rs  # compile-time backend selection (CPU / CUDA)
+│           ├── config.rs   # model configuration
+│           ├── model.rs    # model definition
+│           ├── tokenizer.rs# tokenizer loading
+│           ├── training.rs # training loop
+│           ├── inference.rs# inference entry points
+│           └── weights.rs  # safetensors (de)serialization
+├── Dockerfile              # CPU inference image
+└── .github/workflows/on-push.yml
 ```
+
+## Dependencies
+
+The three pipeline-critical crates are **pinned to exact versions** in the
+workspace `[workspace.dependencies]` table, and everything else is locked via
+`Cargo.lock`:
+
+- `burn` `=0.21.0`
+- `tokenizers` `=0.23.1`
+- `safetensors` `=0.8.0`
+
+## Backends
+
+Burn is generic over its compute backend; wubbie selects one at compile time
+via crate features:
+
+- **`ndarray`** (default) — a pure-Rust CPU backend that builds everywhere. This
+  is what CI builds and the default for `cargo build`.
+- **`cuda`** — the NVIDIA CUDA backend via CubeCL, for GPU training/inference.
+  It requires the CUDA toolkit at build time and is therefore not part of the
+  default build or CI:
+
+  ```bash
+  cargo build --release --features cuda
+  ```
+
+## Development
+
+```bash
+cargo build              # build (CPU backend)
+cargo test               # run the test suite
+cargo fmt --all          # format
+cargo clippy --all-targets --workspace -- -D warnings   # lint (CI gate)
+```
+
+If you have [`cargo-make`](https://github.com/sagiegurari/cargo-make)
+installed, `cargo make ci` runs the full CI gate (format check → clippy →
+build → test) locally.
+
+The `wubbie` CLI scaffolds three subcommands; they are wired up but not yet
+implemented:
+
+```bash
+cargo run -p wubbie -- train
+cargo run -p wubbie -- generate
+cargo run -p wubbie -- serve
+```
+
+## CI
+
+Workflows are named after their trigger event:
+
+- `.github/workflows/on-push.yml` runs on push (PR branches).
+- `.github/workflows/on-merge.yml` runs on the GitHub merge queue
+  (`merge_group`), if one is enabled.
+
+Both run the same gate:
+
+1. `cargo fmt --all --check`
+2. `cargo clippy --all-targets --workspace --locked -- -D warnings`
+3. `cargo build --workspace --locked`
+4. `cargo test --workspace --locked`
+
+A separate `cuda-build` job compile-checks the CUDA backend
+(`cargo build --no-default-features --features cuda`). `cudarc` uses dynamic
+loading, so this builds with no GPU, driver, or CUDA toolkit present — it only
+validates that the `cuda`-gated code compiles; running it needs a GPU host.

@@ -1,267 +1,42 @@
+# cargo-make tasks for local development. These mirror the CI gates in
+# .github/workflows/ci.yml so `cargo make ci` reproduces CI locally.
 [config]
 default_to_workspace = false
 
 [env]
-CARGO_MAKE_CLIPPY_ARGS = "-- --no-deps"
-CARGO_MAKE_COVERAGE_PROVIDER = "llvm-cov"
-CARGO_MAKE_CARGO_BUILD_TEST_FLAGS = ""
-# This is the directory where we generate the CLI's reference
-# documentation.
-CLI_REFERENCE_DIR = "target/debug/"
-# This is the name of the file containing the CLI's reference
-# documentation.
-CLI_REFERENCE_FILE_NAME = "reference.md"
-# CORS configuration for local development
-# Allows common localhost ports for frontend development
-# In production, set CORS_ALLOWED_ORIGINS to your specific domain(s)
-CORS_ALLOWED_ORIGINS = "http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:8080"
-# Credentials disabled by default for security
-CORS_ALLOW_CREDENTIALS = "false"
-
-[env.development]
-CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
-
-[tasks.dev-test-flow]
-dependencies = [
-  "pre-build",
-  "format-flow",
-  "clippy-flow",
-  "build",
-  "post-build",
-  "pre-docs",
-  "docs",
-  "post-docs",
-  "test-flow",
-]
-
-[tasks.pre-build]
-dependencies = ["format-toml-conditioned-flow", "unused-dependencies-flow"]
-
-[tasks.ci-flow]
-dependencies = [
-  "pre-ci-flow",
-  "print-env-flow",
-  "pre-build",
-  "check-format-flow",
-  "clippy-flow",
-  "build",
-  "post-build",
-  "pre-docs",
-  "docs",
-  "post-docs",
-  "test-flow",
-  "post-ci-flow",
-]
-
-[tasks.generate-openapi]
-description = "Generate OpenAPI specification from the server"
-category = "Code Generation"
-workspace = false
-script_runner = "@shell"
-script = '''
-cargo build --release -p __service_name__
-${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/target/release/__service_name__ export-openapi > ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/openapi.json
-'''
-
-[tasks.test]
-workspace = true
-description = "Run our test suite"
-dependencies = ["generate-openapi"]
-command = "cargo"
-args = [
-  "nextest",
-  "run",
-  "--locked",
-  "--no-tests=pass",
-  "--workspace",
-  "@@remove-empty(CARGO_MAKE_CARGO_VERBOSE_FLAGS)",
-  "@@split(CARGO_MAKE_CARGO_BUILD_TEST_FLAGS, )",
-]
-
-[tasks.help]
-command = "cargo"
-description = "List help text for wack executable"
-category = "Development"
-args = [
-  "run",
-  "@@remove-empty(CARGO_MAKE_CARGO_VERBOSE_FLAGS)",
-  "@@split(CARGO_MAKE_CARGO_BUILD_TEST_FLAGS, )",
-  "--",
-  "--help",
-]
-
-[tasks.outdated]
-workspace = true
-description = "List dependencies with newer released versions"
-args = ["outdated", "--root-deps-only", "--exit-code", "1"]
+CARGO_TERM_COLOR = "always"
 
 [tasks.fmt]
-workspace = true
-alias = "format"
+description = "Format the workspace."
+command = "cargo"
+args = ["fmt", "--all"]
 
 [tasks.check-format]
-workspace = true
-
-[tasks.wc]
-description = "Calculate the LoC in src."
-category = "Development"
-command = "tokei"
-args = ["."]
-
-[tasks.gen-cli-reference]
-description = "Generate the CLI's reference documentation in Markdown format"
-category = "Development"
-script_runner = "@shell"
-script = '''
-  mkdir -p $CLI_REFERENCE_DIR || true
-  cargo run --bin mkdown-docs --features=markdown > $CLI_REFERENCE_DIR/$CLI_REFERENCE_FILE_NAME
-'''
-
-[tasks.integ]
-description = "Run the BDD / cucumber integration suite (spec/**)."
-category = "Test"
-workspace = false
+description = "Check formatting (CI gate)."
 command = "cargo"
-args = ["test", "--test", "cucumber"]
+args = ["fmt", "--all", "--", "--check"]
 
-[tasks.bacon]
-description = "Watch tests and rerun on file change."
-category = "Development"
-command = "bacon"
-args = [
-  "nextest",
-  "--",
-  "--workspace",
-  "@@split(CARGO_MAKE_CARGO_BUILD_TEST_FLAGS, )",
-]
-
-[tasks.migrate]
-description = "Run SeaORM migrations"
-category = "Development"
-command = "sea-orm-cli"
-args = ["migrate", "up", "-d", "./crates/migrations"]
-
-[tasks.migrate-up]
-alias = "migrate"
-
-[tasks.migrate-down]
-description = "Revert SeaORM migrations"
-category = "Development"
-command = "sea-orm-cli"
-args = ["migrate", "down", "-d", "./crates/migrations"]
-
-[tasks.generate-entities]
-description = "Generate SeaORM entities from database"
-category = "Development"
-command = "sea-orm-cli"
-args = [
-  "generate",
-  "entity",
-  "-u",
-  "postgresql://postgres:postgres@localhost/__SERVICE_NAME__",
-  "--impl-active-model-behavior=false",
-  "-o",
-  "src/models",
-]
-
-[tasks.pg]
-description = "Run PostgreSQL in Docker for local development"
-category = "Development"
-script = ['''
-docker run --rm \
-  --name '__SERVICE_NAME__-pg' \
-  -e POSTGRES_USER=${POSTGRES_USER:-postgres} \
-  -e POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres} \
-  -e POSTGRES_DB=${POSTGRES_DATABASE:-__SERVICE_NAME__} \
-  -p 5432:5432 \
-  postgres:18-alpine
-''']
-
-[tasks.monitor]
-description = "Run bacon headless for Claude Code's Monitor tool (no TTY, summary output on each change)."
-category = "Development"
-command = "bacon"
-args = ["--headless", "--summary", "--no-help-line"]
-
-# Canonical clippy gate. Overrides the cargo-make built-in clippy-flow (which is
-# non-blocking) so `cargo make` (ci-flow / dev-test-flow) and the bacon clippy job
-# both run the identical `clippy-strict` alias defined in .cargo/config.toml.
-[tasks.clippy-flow]
-description = "Run clippy over the whole workspace, denying warnings (overrides the cargo-make built-in clippy flow)."
-category = "Test"
-dependencies = ["install-clippy"]
+[tasks.clippy]
+description = "Lint the workspace, denying warnings (CI gate)."
 command = "cargo"
-args = ["clippy-strict"]
+args = ["clippy", "--all-targets", "--workspace", "--", "-D", "warnings"]
 
-[tasks.coverage]
-alias = "coverage-llvm-cov"
-
-[tasks.coverage-llvm-cov]
-description = "Run the test suite under llvm-cov and report coverage."
-category = "Test"
-workspace = false
-dependencies = ["generate-openapi"]
+[tasks.build]
+description = "Build the workspace."
 command = "cargo"
-args = [
-  "llvm-cov",
-  "nextest",
-  "--locked",
-  "--no-tests=pass",
-  "--workspace",
-  "@@remove-empty(CARGO_MAKE_CARGO_VERBOSE_FLAGS)",
-  "@@split(CARGO_MAKE_CARGO_BUILD_TEST_FLAGS, )",
-]
+args = ["build", "--workspace"]
 
-[tasks.generate-schema]
-description = "Generate tern/schema.sql from the post-migration database schema"
-category = "Code Generation"
-workspace = false
-script_runner = "@shell"
-# Spins up a throwaway, version-pinned PostgreSQL 18 instance, applies the
-# SeaORM migrations against it, then dumps the resulting schema. The output is
-# normalized so it is byte-for-byte reproducible: pg_dump emits a random
-# \restrict/\unrestrict token and version-specific header comments, both of
-# which we strip so the file can be diff-checked in CI. PostgreSQL is pinned to
-# 18 (matching the `pg` task image) so the DDL formatting never drifts; pg_dump
-# runs inside the container so its client version always matches the server.
-#
-# NOTE: the matching "generate-schema" CI check that diffs this file is added by
-# TPL-015 (schema snapshot). When it lands, keep the normalization here in sync
-# with that workflow.
-script = '''
-set -e
-CONTAINER=__SERVICE_NAME__-schema-pg
-DB_PORT=54329
-DATABASE_URL="postgres://postgres:postgres@localhost:${DB_PORT}/__SERVICE_NAME__"
-export DATABASE_URL
+[tasks.test]
+description = "Run the test suite."
+command = "cargo"
+args = ["test", "--workspace"]
 
-cleanup() { docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true; }
-trap cleanup EXIT
-cleanup
+[tasks.run]
+description = "Run the wubbie CLI (pass args after --)."
+command = "cargo"
+args = ["run", "-p", "wubbie", "--", "${@}"]
 
-docker run -d --name "${CONTAINER}" \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=__SERVICE_NAME__ \
-  -p ${DB_PORT}:5432 \
-  postgres:18-alpine >/dev/null
-
-echo "Waiting for PostgreSQL to become ready..."
-for i in $(seq 1 30); do
-  if docker exec "${CONTAINER}" pg_isready -U postgres >/dev/null 2>&1; then
-    break
-  fi
-  sleep 1
-done
-
-cargo run -p migration -- up
-
-mkdir -p ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/tern
-docker exec -e PGPASSWORD=postgres "${CONTAINER}" \
-  pg_dump --schema-only --no-owner --no-privileges -U postgres __SERVICE_NAME__ \
-  | grep -v -E '^\\(un)?restrict ' \
-  | grep -v -E '^-- Dumped (from database|by pg_dump) version ' \
-  > ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/tern/schema.sql
-
-echo "Wrote ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/tern/schema.sql"
-'''
+# Full local CI reproduction: format check -> clippy -> build -> test.
+[tasks.ci]
+description = "Run the full CI gate locally."
+dependencies = ["check-format", "clippy", "build", "test"]

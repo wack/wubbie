@@ -1,17 +1,16 @@
-name: "On Push – Validate Build"
+name: "On Push – Validate"
 
 on:
+  # PRs are validated by their branch pushes. The default branch and the merge
+  # queue's transient refs are excluded — on-merge.yml owns merge-queue runs.
   push:
-    # Skip running this on the default branch, since the merge queue
-    # takes care of validating the commit.
     branches:
       - '**'
-      - '!trunk'   # excludes trunk
-      - '!gh-readonly-queue/**'   # on-merge.yml owns merge-queue validation
+      - '!trunk'
+      - '!gh-readonly-queue/**'
 
-# Cancel superseded push runs for the same ref. Safe here because this workflow
-# only triggers on push (never on the merge queue), so it never cancels
-# merge-queue validation owned by on-merge.yml.
+# Cancel superseded runs for the same ref. Safe here because this workflow only
+# triggers on push, never on the merge queue (which on-merge.yml owns).
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -20,125 +19,62 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Do not change this job's name without also changing "pr-ready"'s
-  # job name in "on-merge.yml". These jobs must have the same name.
-  # See the README for more details.
+  # Single required status check. Keep this job's name ("⚡ PR Ready") identical
+  # to the one in on-merge.yml so the same branch-protection check is satisfied
+  # in both the push and merge-queue contexts.
   pr-ready:
     if: always()
     name: "⚡ PR Ready"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs:
-    - "format"
-    - "clippy"
-    - "generate-openapi"
+      - validate
+      - cuda-build
     steps:
-      - if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')  || contains(needs.*.result, 'skipped') }}
+      - if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
         run: |
           echo "One or more dependent jobs failed, was skipped, or was cancelled. All jobs must pass for the PR to be ready."
           exit 1
       - run: echo "OK"
 
-  # This job checks that the code is properly formatted using cargo-make.
-  # Full test suite runs only on merge via on-merge.yml.
-  format:
-    name: Check Formatting
+  validate:
+    name: fmt · clippy · build · test
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      # Reads the channel + components from rust-toolchain.toml and sets up
+      # caching for the workspace.
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: stable
-          components: rustfmt
-
-      - name: Configure private git dependencies
-        run: |
-          git config --global url."https://x-access-token:${{ secrets.CROSS_REPO_PAT }}@github.com/".insteadOf "https://github.com/"
-          git config --global --add url."https://x-access-token:${{ secrets.CROSS_REPO_PAT }}@github.com/".insteadOf "ssh://git@github.com/"
-
-      - name: Install cargo-make
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-make
+          components: rustfmt, clippy
 
       - name: Check formatting
-        run: cargo make check-format
+        run: cargo fmt --all --check
 
-  # Fast workspace-wide clippy feedback on PRs (the merge queue's ci-flow runs
-  # the same gate). cargo make clippy-flow runs `cargo clippy-strict`.
-  clippy:
-    name: Clippy (workspace)
+      - name: Clippy (deny warnings)
+        run: cargo clippy --all-targets --workspace --locked -- -D warnings
+
+      - name: Build
+        run: cargo build --workspace --locked
+
+      - name: Test
+        run: cargo test --workspace --locked
+
+  # Compile-check the CUDA (CubeCL) backend. cudarc uses dynamic loading, so this
+  # builds with no GPU, driver, or CUDA toolkit present — it only validates that
+  # the `#[cfg(feature = "cuda")]` code still compiles. Actually running the CUDA
+  # backend needs a GPU runner, which is out of scope here.
+  cuda-build:
+    name: build (cuda, compile-only)
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-          components: clippy
 
-      - name: Configure private git dependencies
-        run: |
-          git config --global url."https://x-access-token:${{ secrets.CROSS_REPO_PAT }}@github.com/".insteadOf "https://github.com/"
-          git config --global --add url."https://x-access-token:${{ secrets.CROSS_REPO_PAT }}@github.com/".insteadOf "ssh://git@github.com/"
-
-      - name: Install cargo-make
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-make
-
-      - name: Run clippy
-        run: cargo make clippy-flow
-
-  generate-openapi:
-    name: OpenAPI Validation
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Configure private git dependencies
-        run: |
-          git config --global url."https://x-access-token:${{ secrets.CROSS_REPO_PAT }}@github.com/".insteadOf "https://github.com/"
-          git config --global --add url."https://x-access-token:${{ secrets.CROSS_REPO_PAT }}@github.com/".insteadOf "ssh://git@github.com/"
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-
-      - name: Build the application
-        run: cargo build --release -p __service_name__
-
-      - name: Generate OpenAPI specification
-        run: |
-          ./target/release/__service_name__ export-openapi > openapi.json
-
-      - name: Build client (validates OpenAPI generation)
-        run: |
-          echo "Building __SERVICE_NAME__-client to validate generated code..."
-          cargo build -p __SERVICE_NAME__-client
-          echo "__SERVICE_NAME__-client built successfully from generated OpenAPI spec"
-
-      - name: Run clippy on client
-        run: cargo clippy -p __SERVICE_NAME__-client -- -D warnings
-
-      - name: Check formatting of client
-        run: cargo fmt -p __SERVICE_NAME__-client -- --check
-
-      - name: Upload OpenAPI Documentation
-        uses: actions/upload-artifact@v7
-        with:
-          name: openapi-documentation
-          path: openapi.json
-          retention-days: 90
+      - name: Build (cuda feature)
+        run: cargo build -p wubbie --no-default-features --features cuda --locked

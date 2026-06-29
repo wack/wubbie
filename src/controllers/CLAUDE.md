@@ -1,1 +1,0 @@
-Each REST API resource must have its own directory under `controllers/`. Top-level resources get a folder directly in `controllers/` (e.g. `controllers/users/`, `controllers/workspaces/`). Nested resources mirror the URL path hierarchy — for example, a resource at `workspaces/{id}/api-keys` lives at `controllers/workspaces/api_keys/`.
