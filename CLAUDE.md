@@ -75,9 +75,12 @@ Training uses `backend::TrainBackend` (an `Autodiff`-wrapped backend); inference
 
 ## CI / Agent Guardrails
 
-- **`.github/workflows/ci.yml`** runs on every push and pull request: `cargo fmt --all --check`,
-  `cargo clippy --all-targets --workspace --locked -- -D warnings`, `cargo build --workspace
-  --locked`, `cargo test --workspace --locked`. It must stay green.
+- **`.github/workflows/on-push.yml`** runs on every push (workflows are named after their trigger
+  event). The `validate` job runs `cargo fmt --all --check`, `cargo clippy --all-targets --workspace
+  --locked -- -D warnings`, `cargo build --workspace --locked`, and `cargo test --workspace
+  --locked`. A `cuda-build` job compile-checks the `cuda` feature (`cargo build --no-default-features
+  --features cuda`) — `cudarc` uses dynamic loading so it builds with no GPU/toolkit, but running it
+  needs a GPU host. It must stay green.
 - **`--locked`:** CI builds/tests with `--locked`, so keep `Cargo.lock` committed and in sync.
 - **Clippy is the ratchet:** the workspace lints (`[workspace.lints]`) deny `unsafe_code` and warn
   on `clippy::all`, escalated to a hard failure by `-D warnings`. Fix findings rather than adding

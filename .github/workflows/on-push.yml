@@ -1,0 +1,62 @@
+name: "On Push – Validate"
+
+on:
+  # PRs are validated by their branch pushes. The default branch and the merge
+  # queue's transient refs are excluded.
+  push:
+    branches:
+      - '**'
+      - '!trunk'
+      - '!gh-readonly-queue/**'
+
+# Cancel superseded runs for the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  validate:
+    name: fmt · clippy · build · test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      # Reads the channel + components from rust-toolchain.toml and sets up
+      # caching for the workspace.
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: rustfmt, clippy
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Clippy (deny warnings)
+        run: cargo clippy --all-targets --workspace --locked -- -D warnings
+
+      - name: Build
+        run: cargo build --workspace --locked
+
+      - name: Test
+        run: cargo test --workspace --locked
+
+  # Compile-check the CUDA (CubeCL) backend. cudarc uses dynamic loading, so this
+  # builds with no GPU, driver, or CUDA toolkit present — it only validates that
+  # the `#[cfg(feature = "cuda")]` code still compiles. Actually running the CUDA
+  # backend needs a GPU runner, which is out of scope here.
+  cuda-build:
+    name: build (cuda, compile-only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Build (cuda feature)
+        run: cargo build -p wubbie --no-default-features --features cuda --locked

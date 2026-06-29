@@ -34,7 +34,7 @@ serves them.
 │           ├── inference.rs# inference entry points
 │           └── weights.rs  # safetensors (de)serialization
 ├── Dockerfile              # CPU inference image
-└── .github/workflows/ci.yml
+└── .github/workflows/on-push.yml
 ```
 
 ## Dependencies
@@ -86,9 +86,14 @@ cargo run -p wubbie -- serve
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every push and pull request and gates on:
+`.github/workflows/on-push.yml` runs on every push and gates on:
 
 1. `cargo fmt --all --check`
 2. `cargo clippy --all-targets --workspace --locked -- -D warnings`
 3. `cargo build --workspace --locked`
 4. `cargo test --workspace --locked`
+
+A separate `cuda-build` job compile-checks the CUDA backend
+(`cargo build --no-default-features --features cuda`). `cudarc` uses dynamic
+loading, so this builds with no GPU, driver, or CUDA toolkit present — it only
+validates that the `cuda`-gated code compiles; running it needs a GPU host.
