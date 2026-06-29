@@ -27,14 +27,19 @@ command = "cargo"
 args = ["build", "--workspace"]
 
 [tasks.test]
-description = "Run the test suite."
+description = "Run the test suite (nextest)."
 command = "cargo"
-args = ["test", "--workspace"]
+args = ["nextest", "run", "--workspace", "--no-tests=pass"]
 
 [tasks.run]
 description = "Run the wubbie CLI (pass args after --)."
 command = "cargo"
 args = ["run", "-p", "wubbie", "--", "${@}"]
+
+[tasks.monitor]
+description = "Run bacon headless for Claude Code's Monitor tool (no TTY, summary output on each change)."
+command = "bacon"
+args = ["--headless", "--summary", "--no-help-line"]
 
 # Full local CI reproduction: format check -> clippy -> build -> test.
 [tasks.ci]

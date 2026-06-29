@@ -50,6 +50,11 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
       - name: Check formatting
         run: cargo fmt --all --check
 
@@ -60,7 +65,7 @@ jobs:
         run: cargo build --workspace --locked
 
       - name: Test
-        run: cargo test --workspace --locked
+        run: cargo nextest run --workspace --locked --no-tests=pass
 
   # Compile-check the CUDA (CubeCL) backend. cudarc uses dynamic loading, so this
   # builds with no GPU, driver, or CUDA toolkit present — it only validates that

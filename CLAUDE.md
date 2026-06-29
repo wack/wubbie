@@ -15,7 +15,7 @@ tokenizer, and [`safetensors`](https://github.com/huggingface/safetensors) for w
 
 ```bash
 cargo build                                              # build (CPU/ndarray backend)
-cargo test --workspace                                   # run the test suite
+cargo nextest run --workspace                            # run the test suite (requires cargo-nextest)
 cargo fmt --all                                          # format
 cargo clippy --all-targets --workspace -- -D warnings    # lint (the CI gate)
 cargo build --release --features cuda                    # build the CUDA backend (needs CUDA)
@@ -82,7 +82,7 @@ crate features. Each backend pairs with the precision it ships with:
   a CUDA host before relying on it.
 - **`wgpu`** — cross-platform WGPU backend via CubeCL (Metal on macOS, Vulkan on Linux/Windows,
   DirectX 12 on Windows), the local-development path. **f32** (Metal does not implement bf16
-  arithmetic via WGPU). Not part of the default build or CI; actually running the
+  arithmetic via WGPU). Compiled in a separate CI job (`wgpu-build`); actually running the
   forward/backward path needs a GPU host. CubeCL's `#[cube]` macros require the crate-root
   `#![recursion_limit = "256"]` set in `lib.rs`.
 
@@ -92,7 +92,7 @@ Training uses `backend::TrainBackend` (an `Autodiff`-wrapped backend); inference
 ## Testing policy
 
 **The test suite must not flake.** Every test in this repository runs deterministically under the
-standard parallel `cargo test` invocation. A flaky test is treated as a bug at parity with a
+standard parallel `cargo nextest run` invocation. A flaky test is treated as a bug at parity with a
 failing test — find the race and fix it, do not paper over it with retries, `#[ignore]`,
 `--test-threads=1`, or `#[serial]` workarounds (those are *symptoms*, not fixes).
 
@@ -116,7 +116,8 @@ Concrete consequences of this rule that have already shaped the code:
   push (PR branches; excludes `trunk` and the merge queue) and `.github/workflows/on-merge.yml`
   runs on `merge_group` (the GitHub merge queue, if enabled). Both run the same jobs: `validate`
   (`cargo fmt --all --check`, `cargo clippy --all-targets --workspace --locked -- -D warnings`,
-  `cargo build --workspace --locked`, `cargo test --workspace --locked`) and `cuda-build`, which
+  `cargo build --workspace --locked`, `cargo nextest run --workspace --locked --no-tests=pass`)
+  and `cuda-build`, which
   compile-checks the `cuda` feature (`cargo build --no-default-features --features cuda`) — `cudarc`
   uses dynamic loading so it builds with no GPU/toolkit, but running it needs a GPU host. Both
   workflows expose a single gate job named **`⚡ PR Ready`**; keep that name identical across the two
