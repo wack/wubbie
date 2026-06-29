@@ -89,6 +89,27 @@ crate features. Each backend pairs with the precision it ships with:
 Training uses `backend::TrainBackend` (an `Autodiff`-wrapped backend); inference uses
 `backend::Backend` directly.
 
+## Testing policy
+
+**The test suite must not flake.** Every test in this repository runs deterministically under the
+standard parallel `cargo test` invocation. A flaky test is treated as a bug at parity with a
+failing test — find the race and fix it, do not paper over it with retries, `#[ignore]`,
+`--test-threads=1`, or `#[serial]` workarounds (those are *symptoms*, not fixes).
+
+Concrete consequences of this rule that have already shaped the code:
+
+- **The config loader does not read `std::env`.** Process env is captured once at the CLI
+  boundary (`config::read_model_env_overrides()`) into an `EnvOverrides` map that is threaded
+  through `load_model_config` and `TrainSubcommand::resolve_model_config`. Tests construct the
+  map explicitly and never call `set_var` / `Jail::set_env`. This rule exists because
+  `std::env::set_var` is process-global and not thread-safe, so any test that mutates env can
+  pollute concurrent tests reading env — a class of race that is impossible to eliminate while
+  the loader reads process env from inside parallel tests.
+- **New surfaces that depend on ambient process state** (env vars, current directory, network,
+  the system clock) **must follow the same pattern**: read the ambient state at a single
+  CLI-side seam, pass the captured value through pure functions, and inject explicit values in
+  tests.
+
 ## CI / Agent Guardrails
 
 - **CI workflows are named after their trigger event.** `.github/workflows/on-push.yml` runs on

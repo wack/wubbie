@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use clap::Args;
 
-use super::{ModelConfig, ModelConfigArgs, ModelSize, load_model_config};
+use super::{EnvOverrides, ModelConfig, ModelConfigArgs, ModelSize, load_model_config};
 use crate::tokenizer;
 
 /// `wubbie train`: train the model from a corpus.
@@ -59,8 +59,13 @@ impl TrainSubcommand {
     }
 
     /// Resolve the fully-specified [`ModelConfig`] by merging, in increasing
-    /// precedence: the `--size` base, the `--config` file, the `WUBBIE_MODEL_`
-    /// environment layer, and the per-field override flags.
+    /// precedence: the `--size` base, the `--config` file, the supplied `env`
+    /// layer (typically `WUBBIE_MODEL_`-prefixed process env captured at the
+    /// CLI boundary via
+    /// [`read_model_env_overrides`](super::read_model_env_overrides)), and the
+    /// per-field override flags. The `env` argument is explicit so this
+    /// function is pure with respect to `std::env` and tests stay
+    /// deterministic.
     ///
     /// If `--tokenizer` is supplied, `vocab_size` is then overridden with the
     /// trained tokenizer's *actual* size: the tokenizer is the authority on
@@ -68,9 +73,13 @@ impl TrainSubcommand {
     /// supersedes the layered value regardless of where that came from. The
     /// [`VOCAB_SIZE`](crate::tokenizer::VOCAB_SIZE) default only applies until a
     /// tokenizer exists.
-    pub fn resolve_model_config(&self) -> Result<ModelConfig> {
-        let mut config =
-            load_model_config(&self.size.config(), self.config.as_deref(), &self.model)?;
+    pub fn resolve_model_config(&self, env: &EnvOverrides) -> Result<ModelConfig> {
+        let mut config = load_model_config(
+            &self.size.config(),
+            self.config.as_deref(),
+            env,
+            &self.model,
+        )?;
         if let Some(path) = self.tokenizer.as_deref() {
             let vocab_size = tokenizer::vocab_size_from_file(path)?;
             if vocab_size != config.vocab_size {
@@ -121,7 +130,9 @@ mod tests {
     #[test]
     fn without_tokenizer_vocab_is_the_default() {
         let args = parse(&["train", "--size", "debug-tiny"]);
-        let config = args.resolve_model_config().expect("resolves");
+        let config = args
+            .resolve_model_config(&EnvOverrides::new())
+            .expect("resolves");
         assert_eq!(config.vocab_size, tokenizer::VOCAB_SIZE);
     }
 
@@ -135,7 +146,9 @@ mod tests {
             "--tokenizer",
             path.to_str().expect("utf-8 path"),
         ]);
-        let config = args.resolve_model_config().expect("resolves");
+        let config = args
+            .resolve_model_config(&EnvOverrides::new())
+            .expect("resolves");
         assert_eq!(config.vocab_size, 300);
         std::fs::remove_file(&path).expect("cleanup");
     }
@@ -152,7 +165,9 @@ mod tests {
             "--tokenizer",
             path.to_str().expect("utf-8 path"),
         ]);
-        let config = args.resolve_model_config().expect("resolves");
+        let config = args
+            .resolve_model_config(&EnvOverrides::new())
+            .expect("resolves");
         assert_eq!(config.vocab_size, 300);
         std::fs::remove_file(&path).expect("cleanup");
     }

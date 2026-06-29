@@ -12,7 +12,10 @@ pub use cli::Cli;
 pub use command::Command;
 pub use download::DownloadSubcommand;
 pub use generate::GenerateSubcommand;
-pub use loader::{LayeredConfig, ModelConfigArgs, load_model_config};
+pub use loader::{
+    EnvOverrides, LayeredConfig, MODEL_ENV_PREFIX, ModelConfigArgs, load_model_config,
+    parse_env_overrides, read_model_env_overrides,
+};
 pub use model::{CONTEXT_LENGTH, ModelConfig, ModelSize, PartialModelConfig};
 pub use run::{RunConfig, TrainingConfig};
 pub use serve::ServeSubcommand;
