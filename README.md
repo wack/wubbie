@@ -92,6 +92,21 @@ and run configuration (`ModelConfig`, the named `ModelSize`s, `TrainingConfig`,
 and the reproducible `RunConfig` bundle) also live under `src/config/` and are
 `serde`-serializable for reproducible runs.
 
+Configuration is loaded in layers via [`figment`] (`config/loader.rs`). A
+`LayeredConfig` builder merges, in increasing precedence, a named-size base, an
+optional (possibly partial) config file, `WUBBIE_MODEL_`-prefixed environment
+variables, and per-field CLI flags, then extracts a **fully-specified**
+`ModelConfig` — every `Option` is resolved or defaulted, and a field left unset
+with no default is a hard error rather than a silent `None`. For example:
+
+```bash
+# base gpt2-small, with d_model from the file, num_layers from env, d_ff from a flag
+WUBBIE_MODEL_NUM_LAYERS=24 \
+  cargo run -p wubbie -- train --config model.toml --d-ff 5000
+```
+
+[`figment`]: https://docs.rs/figment
+
 ## CI
 
 Workflows are named after their trigger event:

@@ -11,7 +11,8 @@
 pub use cli::Cli;
 pub use command::Command;
 pub use generate::GenerateSubcommand;
-pub use model::{CONTEXT_LENGTH, ModelConfig, ModelSize};
+pub use loader::{LayeredConfig, ModelConfigArgs, load_model_config};
+pub use model::{CONTEXT_LENGTH, ModelConfig, ModelSize, PartialModelConfig};
 pub use run::{RunConfig, TrainingConfig};
 pub use serve::ServeSubcommand;
 pub use train::TrainSubcommand;
@@ -19,6 +20,7 @@ pub use train::TrainSubcommand;
 mod cli;
 mod command;
 mod generate;
+mod loader;
 mod model;
 mod run;
 mod serve;

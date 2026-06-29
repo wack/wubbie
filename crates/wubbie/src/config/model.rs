@@ -131,6 +131,31 @@ impl ModelSize {
     }
 }
 
+/// A partial [`ModelConfig`]: every field optional so a config file (or a CLI
+/// override layer) may specify only some of them.
+///
+/// This is the shape each non-default layer deserializes into during the merge
+/// in [`load_model_config`](super::load_model_config). Only the fields that are
+/// actually set serialize (`skip_serializing_if`), so an unset value in a
+/// higher-precedence layer contributes nothing and never clobbers a lower one.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PartialModelConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vocab_size: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_length: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub d_model: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub d_ff: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub num_layers: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub num_heads: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub norm_first: Option<bool>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
