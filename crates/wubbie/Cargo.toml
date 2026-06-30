@@ -28,7 +28,7 @@ cuda = ["burn/cuda", "burn/fusion"]
 wgpu = ["burn/wgpu", "burn/fusion"]
 
 [dependencies]
-burn = { workspace = true, features = ["std", "autodiff", "train"] }
+burn = { workspace = true, features = ["std", "autodiff", "train", "tui"] }
 tokenizers = { workspace = true }
 safetensors = { workspace = true }
 anyhow = { workspace = true }
