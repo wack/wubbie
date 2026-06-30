@@ -23,6 +23,7 @@ pub mod backend;
 pub mod cmd;
 pub mod config;
 pub mod corpus;
+pub mod data;
 pub mod inference;
 pub mod model;
 pub mod tokenizer;

@@ -45,6 +45,8 @@ are added as members in the root `Cargo.toml`.
             ├── cmd/        # subcommand handlers (download / tokenizer / train / …)
             ├── backend.rs  # compile-time backend selection (ndarray / cuda)
             ├── corpus.rs   # corpus access: HF (hf-hub) / local; JSONL(.gz) + text
+            ├── data/       # training data loader: ShardSource (LocalDir tar shards /
+            │               #   HfStreaming stub) → packing, shuffle, split, resumable batches
             ├── model.rs    # model definition
             ├── tokenizer.rs# byte-level BPE tokenizer: train + load (tokenizers crate)
             ├── training.rs # training loop

@@ -97,6 +97,7 @@ serves them.
 │           ├── cmd/        # subcommand handlers (download / tokenizer / train / generate / serve)
 │           ├── backend.rs  # compile-time backend selection (CPU / CUDA)
 │           ├── corpus.rs   # corpus access (HF via hf-hub / local; JSONL+gz)
+│           ├── data/       # training data loader (ShardSource: tar shards → packed, shuffled, resumable batches)
 │           ├── model.rs    # model definition
 │           ├── tokenizer.rs# byte-level BPE tokenizer (train + load)
 │           ├── training.rs # training loop
