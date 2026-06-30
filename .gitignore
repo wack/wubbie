@@ -24,3 +24,6 @@ target
 # Added by cargo
 
 /target
+
+# A local cache for pre-training data.
+corpus

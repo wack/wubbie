@@ -10,7 +10,7 @@ use crate::tokenizer::{DEFAULT_MIN_FREQUENCY, VOCAB_SIZE};
 /// `wubbie tokenizer`: train the byte-level BPE tokenizer on a corpus slice.
 ///
 /// The corpus comes from exactly one source: a local `--input` path (a file, or
-/// a directory swept for corpus files) or a pinned Hugging Face dataset
+/// a directory walked recursively for corpus files) or a pinned Hugging Face dataset
 /// (`--hf-repo` at `--hf-revision`). The filtered CommonPile slice lives on HF
 /// (MULTI-1378) and is pulled on demand; the local path covers tiny local runs.
 /// Shards are JSONL/`.gz` (text under `--text-field`) or plain text.
@@ -24,7 +24,7 @@ use crate::tokenizer::{DEFAULT_MIN_FREQUENCY, VOCAB_SIZE};
     ArgGroup::new("corpus_source").required(true).args(["input", "hf_repo"])
 ))]
 pub struct TokenizerSubcommand {
-    /// Local corpus: a single file, or a directory swept (non-recursively) for
+    /// Local corpus: a single file, or a directory walked recursively for
     /// `.jsonl`/`.jsonl.gz`/`.txt` files.
     #[arg(long, value_name = "PATH")]
     input: Option<PathBuf>,
