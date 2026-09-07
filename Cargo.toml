@@ -19,7 +19,7 @@ repository = "https://github.com/wack/wubbie"
 # `cuda` feature on the `wubbie` crate (see crates/wubbie/Cargo.toml).
 burn = { version = "=0.21.0", default-features = false }
 # HuggingFace tokenizers. Used to train and load the byte-level BPE tokenizer.
-tokenizers = { version = "=0.23.1", default-features = false, features = [
+tokenizers = { version = "=0.23.2", default-features = false, features = [
   "onig",
   "progressbar",
 ] }
