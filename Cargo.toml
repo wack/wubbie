@@ -17,9 +17,9 @@ repository = "https://github.com/wack/wubbie"
 # Burn deep-learning framework. The CPU (`ndarray`) backend is the default and
 # is what CI builds; the NVIDIA CUDA backend (CubeCL) is wired behind the
 # `cuda` feature on the `wubbie` crate (see crates/wubbie/Cargo.toml).
-burn = { version = "=0.21.0", default-features = false }
+burn = { version = "=0.22.0", default-features = false }
 # HuggingFace tokenizers. Used to train and load the byte-level BPE tokenizer.
-tokenizers = { version = "=0.23.1", default-features = false, features = [
+tokenizers = { version = "=0.23.2", default-features = false, features = [
   "onig",
   "progressbar",
 ] }
